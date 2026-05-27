@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="114" fill="#0B1410"/>
+  <circle cx="256" cy="256" r="180" fill="none" stroke="#1D8F62" stroke-width="3" stroke-dasharray="12 20" opacity="0.4"/>
+  <circle cx="256" cy="256" r="130" fill="none" stroke="#1D8F62" stroke-width="3" opacity="0.6"/>
+  <circle cx="256" cy="256" r="80" fill="none" stroke="#1E6E7A" stroke-width="3"/>
+  <circle cx="256" cy="256" r="38" fill="#1D8F62" opacity="0.3"/>
+  <circle cx="256" cy="256" r="14" fill="#1D8F62"/>
+  <circle cx="256" cy="256" r="6" fill="#02C39A"/>
+  <!-- Puntos de nodos -->
+  <circle cx="180" cy="200" r="7" fill="#1D8F62" opacity="0.8"/>
+  <circle cx="330" cy="220" r="7" fill="#EF9F27" opacity="0.8"/>
+  <circle cx="260" cy="320" r="7" fill="#E24B4A" opacity="0.8"/>
+  <!-- Líneas de conexión -->
+  <line x1="180" y1="200" x2="256" y2="256" stroke="#1D8F62" stroke-width="1.5" opacity="0.5"/>
+  <line x1="330" y1="220" x2="256" y2="256" stroke="#EF9F27" stroke-width="1.5" opacity="0.5"/>
+  <line x1="260" y1="320" x2="256" y2="256" stroke="#E24B4A" stroke-width="1.5" opacity="0.5"/>
+</svg>

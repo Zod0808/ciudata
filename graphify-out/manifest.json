@@ -1,0 +1,162 @@
+{
+  "C:\\Users\\User\\Desktop\\construccionI\\ciudata\\ciudata-app\\capacitor.config.json": {
+    "mtime": 1778097843.4440253,
+    "ast_hash": "8e8a51e156bba8b37582bab04bf63eb9",
+    "semantic_hash": "8e8a51e156bba8b37582bab04bf63eb9"
+  },
+  "C:\\Users\\User\\Desktop\\construccionI\\ciudata\\ciudata-app\\package.json": {
+    "mtime": 1778097885.8329291,
+    "ast_hash": "1b8228d009ce5c6184cb12e7b7dcc06b",
+    "semantic_hash": "1b8228d009ce5c6184cb12e7b7dcc06b"
+  },
+  "C:\\Users\\User\\Desktop\\construccionI\\ciudata\\ciudata-app\\android\\build.gradle": {
+    "mtime": 1777485338.0,
+    "ast_hash": "bb096097f0fed2e1e0220a42113eaaa4",
+    "semantic_hash": "bb096097f0fed2e1e0220a42113eaaa4"
+  },
+  "C:\\Users\\User\\Desktop\\construccionI\\ciudata\\ciudata-app\\android\\capacitor.settings.gradle": {
+    "mtime": 1778625324.6299758,
+    "ast_hash": "2b971c0f1a39458c67a3859983a960e9",
+    "semantic_hash": "2b971c0f1a39458c67a3859983a960e9"
+  },
+  "C:\\Users\\User\\Desktop\\construccionI\\ciudata\\ciudata-app\\android\\gradlew": {
+    "mtime": 1777504831.543703,
+    "ast_hash": "1b55ea5b0e5fc1eb95371fb67272795f",
+    "semantic_hash": "1b55ea5b0e5fc1eb95371fb67272795f"
+  },
+  "C:\\Users\\User\\Desktop\\construccionI\\ciudata\\ciudata-app\\android\\settings.gradle": {
+    "mtime": 1778101244.8151548,
+    "ast_hash": "8a6c397df408c6aae4fe2d5508721af8",
+    "semantic_hash": "8a6c397df408c6aae4fe2d5508721af8"
+  },
+  "C:\\Users\\User\\Desktop\\construccionI\\ciudata\\ciudata-app\\android\\app\\build.gradle": {
+    "mtime": 1778101252.8841066,
+    "ast_hash": "cd2f0048f7e5d1d36291ac7906cec7a7",
+    "semantic_hash": "cd2f0048f7e5d1d36291ac7906cec7a7"
+  },
+  "C:\\Users\\User\\Desktop\\construccionI\\ciudata\\ciudata-app\\android\\app\\capacitor.build.gradle": {
+    "mtime": 1778625324.6299758,
+    "ast_hash": "789401b1920dba8b928beb895c79a077",
+    "semantic_hash": "789401b1920dba8b928beb895c79a077"
+  },
+  "C:\\Users\\User\\Desktop\\construccionI\\ciudata\\ciudata-app\\android\\app\\src\\main\\assets\\capacitor.config.json": {
+    "mtime": 1778625324.5909648,
+    "ast_hash": "817bc00e3694b61ab98bd160bc0dbcfd",
+    "semantic_hash": "817bc00e3694b61ab98bd160bc0dbcfd"
+  },
+  "C:\\Users\\User\\Desktop\\construccionI\\ciudata\\ciudata-app\\android\\app\\src\\main\\assets\\capacitor.plugins.json": {
+    "mtime": 1778625324.6161244,
+    "ast_hash": "ae511858da43acf6750715d479b418ff",
+    "semantic_hash": "ae511858da43acf6750715d479b418ff"
+  },
+  "C:\\Users\\User\\Desktop\\construccionI\\ciudata\\ciudata-app\\android\\app\\src\\main\\assets\\public\\cordova.js": {
+    "mtime": 1778625324.6274855,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "C:\\Users\\User\\Desktop\\construccionI\\ciudata\\ciudata-app\\android\\app\\src\\main\\assets\\public\\cordova_plugins.js": {
+    "mtime": 1778625324.6274855,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "C:\\Users\\User\\Desktop\\construccionI\\ciudata\\ciudata-app\\android\\app\\src\\main\\java\\com\\ciudata\\app\\MainActivity.java": {
+    "mtime": 1778097864.6448913,
+    "ast_hash": "9c08e68bb52d1eddd9981e8504805376",
+    "semantic_hash": "9c08e68bb52d1eddd9981e8504805376"
+  },
+  "C:\\Users\\User\\Desktop\\construccionI\\ciudata\\ciudata-app\\android\\capacitor-cordova-android-plugins\\build.gradle": {
+    "mtime": 1778625324.6309562,
+    "ast_hash": "2af61653d70c95d20802c8b5c433ba90",
+    "semantic_hash": "2af61653d70c95d20802c8b5c433ba90"
+  },
+  "C:\\Users\\User\\Desktop\\construccionI\\ciudata\\ciudata-app\\android\\capacitor-cordova-android-plugins\\cordova.variables.gradle": {
+    "mtime": 1778625324.6319318,
+    "ast_hash": "d2372a0ae9aa60abb8d03e7f06bf9194",
+    "semantic_hash": "d2372a0ae9aa60abb8d03e7f06bf9194"
+  },
+  "C:\\Users\\User\\Desktop\\construccionI\\ciudata\\ciudata-app\\INSTRUCCIONES.md": {
+    "mtime": 1777485504.0,
+    "ast_hash": "9d73fa16216778eb43380d6911202f75",
+    "semantic_hash": "9d73fa16216778eb43380d6911202f75"
+  },
+  "C:\\Users\\User\\Desktop\\construccionI\\ciudata\\ciudata-app\\README.md": {
+    "mtime": 1778205759.4383545,
+    "ast_hash": "f441ebb6e2b1b9b8b7729e0352717a25",
+    "semantic_hash": "f441ebb6e2b1b9b8b7729e0352717a25"
+  },
+  "C:\\Users\\User\\Desktop\\construccionI\\ciudata\\ciudata-app\\android\\app\\src\\main\\assets\\public\\index.html": {
+    "mtime": 1778625314.7908878,
+    "ast_hash": "64c7479785b2a18c098bf844a01b01b8",
+    "semantic_hash": "64c7479785b2a18c098bf844a01b01b8"
+  },
+  "C:\\Users\\User\\Desktop\\construccionI\\ciudata\\ciudata-app\\www\\index.html": {
+    "mtime": 1778625314.7908878,
+    "ast_hash": "64c7479785b2a18c098bf844a01b01b8",
+    "semantic_hash": "64c7479785b2a18c098bf844a01b01b8"
+  },
+  "C:\\Users\\User\\Desktop\\construccionI\\ciudata\\ciudata-app\\icon_source.svg": {
+    "mtime": 1777485396.0,
+    "ast_hash": "e0019c0183f54dcab9cf83806e0821b4",
+    "semantic_hash": "e0019c0183f54dcab9cf83806e0821b4"
+  },
+  "C:\\Users\\User\\Desktop\\construccionI\\ciudata\\ciudata-app\\android\\app\\src\\main\\res\\drawable\\ic_notification.png": {
+    "mtime": 1777485455.0,
+    "ast_hash": "1e3869dd90e87b412d8ece441554e8f0",
+    "semantic_hash": "1e3869dd90e87b412d8ece441554e8f0"
+  },
+  "C:\\Users\\User\\Desktop\\construccionI\\ciudata\\ciudata-app\\android\\app\\src\\main\\res\\drawable\\splash.png": {
+    "mtime": 1777485455.0,
+    "ast_hash": "77f57ac61affdc557be46e0e26e08408",
+    "semantic_hash": "77f57ac61affdc557be46e0e26e08408"
+  },
+  "C:\\Users\\User\\Desktop\\construccionI\\ciudata\\ciudata-app\\android\\app\\src\\main\\res\\mipmap-hdpi\\ic_launcher.png": {
+    "mtime": 1777485446.0,
+    "ast_hash": "e0e2fb3f53f80b73091b92cb2448138d",
+    "semantic_hash": "e0e2fb3f53f80b73091b92cb2448138d"
+  },
+  "C:\\Users\\User\\Desktop\\construccionI\\ciudata\\ciudata-app\\android\\app\\src\\main\\res\\mipmap-hdpi\\ic_launcher_round.png": {
+    "mtime": 1777485446.0,
+    "ast_hash": "2a25e755603ac3cadd324a1cd05e7b3d",
+    "semantic_hash": "2a25e755603ac3cadd324a1cd05e7b3d"
+  },
+  "C:\\Users\\User\\Desktop\\construccionI\\ciudata\\ciudata-app\\android\\app\\src\\main\\res\\mipmap-mdpi\\ic_launcher.png": {
+    "mtime": 1777485446.0,
+    "ast_hash": "2d96de018ab3a317f4cb4fcf45581ba4",
+    "semantic_hash": "2d96de018ab3a317f4cb4fcf45581ba4"
+  },
+  "C:\\Users\\User\\Desktop\\construccionI\\ciudata\\ciudata-app\\android\\app\\src\\main\\res\\mipmap-mdpi\\ic_launcher_round.png": {
+    "mtime": 1777485446.0,
+    "ast_hash": "714453a374c14d49a5cc7f3911c23de2",
+    "semantic_hash": "714453a374c14d49a5cc7f3911c23de2"
+  },
+  "C:\\Users\\User\\Desktop\\construccionI\\ciudata\\ciudata-app\\android\\app\\src\\main\\res\\mipmap-xhdpi\\ic_launcher.png": {
+    "mtime": 1777485446.0,
+    "ast_hash": "30e114b57f94b734e872828c8ef0f349",
+    "semantic_hash": "30e114b57f94b734e872828c8ef0f349"
+  },
+  "C:\\Users\\User\\Desktop\\construccionI\\ciudata\\ciudata-app\\android\\app\\src\\main\\res\\mipmap-xhdpi\\ic_launcher_round.png": {
+    "mtime": 1777485446.0,
+    "ast_hash": "b5294112e9cfeca7ab10360426f9fff8",
+    "semantic_hash": "b5294112e9cfeca7ab10360426f9fff8"
+  },
+  "C:\\Users\\User\\Desktop\\construccionI\\ciudata\\ciudata-app\\android\\app\\src\\main\\res\\mipmap-xxhdpi\\ic_launcher.png": {
+    "mtime": 1777485446.0,
+    "ast_hash": "4c0e2c52f3bbc1f6a59fa7e2b29a279c",
+    "semantic_hash": "4c0e2c52f3bbc1f6a59fa7e2b29a279c"
+  },
+  "C:\\Users\\User\\Desktop\\construccionI\\ciudata\\ciudata-app\\android\\app\\src\\main\\res\\mipmap-xxhdpi\\ic_launcher_round.png": {
+    "mtime": 1777485446.0,
+    "ast_hash": "51f53bc1350922d2fd6698ea9b927729",
+    "semantic_hash": "51f53bc1350922d2fd6698ea9b927729"
+  },
+  "C:\\Users\\User\\Desktop\\construccionI\\ciudata\\ciudata-app\\android\\app\\src\\main\\res\\mipmap-xxxhdpi\\ic_launcher.png": {
+    "mtime": 1777485446.0,
+    "ast_hash": "750a90bb98843621578a9c4d2c0b2741",
+    "semantic_hash": "750a90bb98843621578a9c4d2c0b2741"
+  },
+  "C:\\Users\\User\\Desktop\\construccionI\\ciudata\\ciudata-app\\android\\app\\src\\main\\res\\mipmap-xxxhdpi\\ic_launcher_round.png": {
+    "mtime": 1777485446.0,
+    "ast_hash": "0ed41a5f173fde6affff9a7786d89cac",
+    "semantic_hash": "0ed41a5f173fde6affff9a7786d89cac"
+  }
+}

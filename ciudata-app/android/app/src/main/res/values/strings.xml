@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">CIUDATA</string>
+    <string name="title_activity_main">CIUDATA</string>
+    <string name="package_name">com.ciudata.app</string>
+    <string name="custom_url_scheme">com.ciudata.app</string>
+</resources>

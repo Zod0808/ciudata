@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Colores CIUDATA -->
+    <color name="colorPrimary">#1D8F62</color>
+    <color name="colorPrimaryDark">#0B1410</color>
+    <color name="colorAccent">#02C39A</color>
+    <color name="colorBackground">#0B1410</color>
+    <color name="colorTeal">#1E6E7A</color>
+    <color name="colorDanger">#E24B4A</color>
+    <color name="colorWarn">#EF9F27</color>
+    <color name="white">#FFFFFF</color>
+    <color name="transparent">#00000000</color>
+</resources>

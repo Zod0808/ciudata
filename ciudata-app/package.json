@@ -1,0 +1,38 @@
+{
+  "name": "ciudata",
+  "version": "1.0.0",
+  "description": "CIUDATA - Sistema de monitoreo ambiental-vial inteligente para Tacna",
+  "scripts": {
+    "build": "echo 'No framework build needed - pure HTML'",
+    "cap:init": "npx cap init CIUDATA com.ciudata.app --web-dir www",
+    "cap:add:android": "npx cap add android",
+    "cap:sync": "npx cap sync android",
+    "cap:open": "npx cap open android",
+    "cap:run": "npx cap run android",
+    "build:android": "npm run build && npx cap sync android"
+  },
+  "keywords": [
+    "ciudata",
+    "iot",
+    "tacna",
+    "air-quality",
+    "android"
+  ],
+  "author": "Equipo CIUDATA - UPT Tacna",
+  "license": "MIT",
+  "dependencies": {
+    "@capacitor/android": "^6.0.0",
+    "@capacitor/camera": "^6.0.0",
+    "@capacitor/core": "^6.0.0",
+    "@capacitor/geolocation": "^6.0.0",
+    "@capacitor/haptics": "^6.0.0",
+    "@capacitor/network": "^6.0.0",
+    "@capacitor/preferences": "^6.0.0",
+    "@capacitor/push-notifications": "^6.0.0",
+    "@capacitor/splash-screen": "^6.0.0",
+    "@capacitor/status-bar": "^6.0.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.3.1"
+  }
+}

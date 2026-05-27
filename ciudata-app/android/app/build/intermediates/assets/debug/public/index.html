@@ -1,0 +1,2028 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#0A1C24">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>CIUDATA</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <script>
+    // Apply saved theme before first paint to avoid flash
+    if (localStorage.getItem('ciudata_theme') === 'light') {
+      document.documentElement.classList.add('prelight');
+    }
+  </script>
+  <style>
+    /* Pre-light avoids flash before body exists */
+    html.prelight body { background:#F0F5F8; }
+    :root {
+      /* ── WAZE Brand Palette ── */
+      --bg:        #0A1C24;
+      --bg2:       #0F2530;
+      --bg3:       #152E3C;
+      --card:      #1B3848;
+      /* Waze Cyan / Turquoise — brand primary */
+      --primary:   #23AABA;
+      --primary-d: #1A7D8A;
+      --primary-l: #2EC5D8;
+      /* Waze Teal */
+      --teal:      #4DA3A2;
+      --teal-l:    #5BBFBE;
+      /* Green — tráfico libre / OK */
+      --green:     #3DBE6C;
+      --green-l:   #52D882;
+      --green-d:   #1F7840;
+      /* Per-metric accent colors */
+      --cyan:      #23AABA;
+      --purple:    #7B6CF6;
+      --orange:    #EAA12C;
+      /* Severity — Waze brand */
+      --danger:    #F84439;
+      --warn:      #EAA12C;
+      --accent:    #23AABA;
+      /* Text */
+      --text:      #E8F4F8;
+      --text2:     #B0C9D9;
+      --text3:     #527A8A;
+      /* Layout */
+      --border:    rgba(35,170,186,0.18);
+      --radius:    14px;
+      --radius-sm: 10px;
+      --shadow:    0 8px 32px rgba(0,0,0,0.65);
+      --glow:      0 0 24px rgba(35,170,186,0.32);
+    }
+
+    * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+    html, body { width:100%; height:100%; overflow:hidden; background:var(--bg); }
+    body { font-family:'Syne', sans-serif; color:var(--text); overscroll-behavior:none; }
+
+    /* ── SPLASH ── */
+    #splash {
+      position:fixed; inset:0; background:var(--bg); z-index:9999;
+      display:flex; flex-direction:column; align-items:center; justify-content:center;
+      transition:opacity 0.6s ease, transform 0.6s ease;
+    }
+    #splash.hide { opacity:0; transform:scale(1.04); pointer-events:none; }
+    .splash-rings { position:relative; width:180px; height:180px; margin-bottom:32px; }
+    .splash-ring {
+      position:absolute; border-radius:50%; border:2px solid var(--primary);
+      animation: pulseRing 2.4s ease-in-out infinite;
+    }
+    .splash-ring:nth-child(1){ inset:0; opacity:0.12; animation-delay:0s; }
+    .splash-ring:nth-child(2){ inset:18px; opacity:0.25; animation-delay:0.3s; }
+    .splash-ring:nth-child(3){ inset:36px; opacity:0.45; animation-delay:0.6s; }
+    .splash-ring:nth-child(4){ inset:54px; opacity:0.70; border-color:var(--orange); animation-delay:0.9s; }
+    .splash-core {
+      position:absolute; inset:72px; border-radius:50%;
+      background:radial-gradient(circle, var(--primary) 0%, var(--primary-d) 60%, transparent 100%);
+      animation: coreGlow 2.4s ease-in-out infinite alternate;
+    }
+    @keyframes pulseRing {
+      0%,100%{ transform:scale(1); opacity:inherit; }
+      50%{ transform:scale(1.06); }
+    }
+    @keyframes coreGlow {
+      from{ box-shadow:0 0 20px var(--primary), 0 0 40px rgba(35,170,186,0.4); }
+      to  { box-shadow:0 0 40px var(--primary-l), 0 0 80px rgba(35,170,186,0.65); }
+    }
+    .splash-logo { font-family:'Space Mono',monospace; font-size:36px; font-weight:700; letter-spacing:8px; color:var(--text); }
+    .splash-sub { font-size:11px; letter-spacing:4px; color:var(--primary); margin-top:6px; font-family:'Space Mono',monospace; }
+    .splash-bar { width:160px; height:2px; background:var(--bg3); border-radius:2px; margin-top:40px; overflow:hidden; }
+    .splash-bar-fill { height:100%; background:linear-gradient(90deg,var(--primary),var(--orange)); animation:loadBar 1.8s ease forwards; }
+    @keyframes loadBar { from{width:0%} to{width:100%} }
+
+    /* ── LAYOUT ── */
+    #app { position:fixed; inset:0; display:flex; flex-direction:column; }
+
+    /* ── HEADER ── */
+    .header {
+      flex-shrink:0; padding: env(safe-area-inset-top,16px) 20px 12px;
+      background:rgba(10,28,36,0.96); backdrop-filter:blur(24px);
+      border-bottom:1px solid var(--border);
+      display:flex; align-items:center; justify-content:space-between;
+      z-index:100; box-shadow:0 1px 0 var(--border), 0 4px 20px rgba(0,0,0,0.4);
+    }
+    .header-logo { display:flex; align-items:center; gap:10px; }
+    .logo-icon {
+      width:36px; height:36px; border-radius:10px;
+      background:linear-gradient(135deg,var(--primary),var(--orange));
+      display:flex; align-items:center; justify-content:center;
+      box-shadow:0 0 16px rgba(35,170,186,0.55);
+    }
+    .logo-icon svg { width:20px; height:20px; }
+    .logo-text { font-family:'Space Mono',monospace; font-size:18px; font-weight:700; letter-spacing:3px; }
+    .logo-text span { color:var(--primary); }
+    .header-badge {
+      font-size:9px; font-family:'Space Mono',monospace; letter-spacing:2px;
+      color:var(--orange); background:rgba(234,161,44,0.14); border:1px solid rgba(234,161,44,0.38);
+      padding:3px 8px; border-radius:99px;
+      animation: badgePulse 3s ease infinite;
+    }
+    @keyframes badgePulse {
+      0%,100%{ opacity:1; } 50%{ opacity:0.6; }
+    }
+    .header-right { display:flex; align-items:center; gap:8px; }
+    .icon-btn {
+      width:38px; height:38px; border-radius:10px; border:1px solid var(--border);
+      background:var(--card); display:flex; align-items:center; justify-content:center;
+      cursor:pointer; transition:all 0.2s; color:var(--text2);
+    }
+    .icon-btn:active { transform:scale(0.92); background:var(--primary-d); color:var(--text); }
+
+    /* ── CONTENT ── */
+    .content { flex:1; position:relative; overflow:hidden; }
+
+    /* ── PAGES ── */
+    .page {
+      position:absolute; inset:0; display:flex; flex-direction:column;
+      padding-bottom:80px; overflow-y:auto; overflow-x:hidden;
+      -webkit-overflow-scrolling:touch; scroll-behavior:smooth;
+      transform:translateX(110%); visibility:hidden;
+      will-change:transform; backface-visibility:hidden;
+    }
+    .page::-webkit-scrollbar { display:none; }
+    .page.active { transform:translateX(0); visibility:visible; }
+    @keyframes fadeSlide {
+      from{ opacity:0; transform:translateY(10px); }
+      to  { opacity:1; transform:translateY(0); }
+    }
+
+    /* ── MAP PAGE ── */
+    #map { width:100%; height:clamp(260px,42vh,420px); border-bottom:1px solid var(--border); }
+    .map-overlay {
+      position:absolute; top:0; left:0; right:0; height:320px;
+      pointer-events:none; z-index:500;
+      background:linear-gradient(to bottom, rgba(10,28,36,0.5) 0%, transparent 30%, transparent 70%, rgba(10,28,36,0.85) 100%);
+    }
+    .map-wrap { position:relative; }
+
+    /* ── AQI CARD ── */
+    .aqi-strip { padding:16px; display:flex; gap:10px; overflow-x:auto; }
+    .aqi-strip::-webkit-scrollbar { display:none; }
+    .aqi-card {
+      flex-shrink:0; background:var(--card); border:1px solid var(--border);
+      border-radius:var(--radius); padding:14px 16px; min-width:130px;
+      position:relative; overflow:hidden; cursor:pointer;
+      transition:transform 0.2s, box-shadow 0.2s;
+    }
+    .aqi-card:active { transform:scale(0.96); }
+    .aqi-card::before {
+      content:''; position:absolute; top:0; left:0; right:0; height:3px;
+      background:var(--indicator-color,var(--green));
+    }
+    .aqi-label { font-size:10px; letter-spacing:2px; color:var(--text3); font-family:'Space Mono',monospace; }
+    .aqi-value { font-size:28px; font-weight:800; color:var(--indicator-color,var(--green)); margin:4px 0; line-height:1; }
+    .aqi-unit { font-size:10px; color:var(--text2); font-family:'Space Mono',monospace; }
+    .aqi-status { font-size:11px; margin-top:6px; color:var(--text2); }
+
+    /* ── ALERT BANNER ── */
+    .alert-banner {
+      margin:0 16px 4px; padding:12px 16px;
+      background:rgba(255,71,87,0.12); border:1px solid rgba(255,71,87,0.3);
+      border-radius:var(--radius-sm); display:flex; align-items:center; gap:10px;
+      animation: alertPulse 2s ease infinite;
+    }
+    @keyframes alertPulse {
+      0%,100%{ border-color:rgba(255,71,87,0.3); }
+      50%{ border-color:rgba(255,71,87,0.7); }
+    }
+    .alert-dot { width:8px; height:8px; border-radius:50%; background:var(--danger); flex-shrink:0; animation:dotBlink 1s ease infinite; }
+    @keyframes dotBlink { 0%,100%{opacity:1;} 50%{opacity:0.2;} }
+    .alert-text { font-size:12px; color:var(--danger); flex:1; }
+    .alert-text strong { display:block; font-size:13px; }
+
+    /* ── SECTION ── */
+    .section { padding:16px; }
+    .section-title { font-size:11px; letter-spacing:3px; color:var(--text3); font-family:'Space Mono',monospace; margin-bottom:12px; }
+
+    /* ── NODE CARDS ── */
+    .node-card {
+      background:var(--card); border:1px solid var(--border); border-radius:var(--radius);
+      padding:16px; margin-bottom:10px; display:flex; align-items:center; gap:14px;
+      cursor:pointer; transition:all 0.2s; position:relative; overflow:hidden;
+    }
+    .node-card:active { transform:scale(0.98); box-shadow:var(--glow); }
+    .node-card::after { content:''; position:absolute; inset:0; background:linear-gradient(135deg,transparent 60%,rgba(35,170,186,0.06)); }
+    .node-indicator {
+      width:48px; height:48px; border-radius:14px; flex-shrink:0;
+      display:flex; align-items:center; justify-content:center; font-size:20px;
+      position:relative;
+    }
+    .node-indicator::after {
+      content:''; position:absolute; inset:-3px; border-radius:17px;
+      border:1.5px solid var(--ind-color,var(--green)); opacity:0.5;
+    }
+    .ind-ok { background:rgba(61,190,108,0.15); --ind-color:var(--green); }
+    .ind-warn { background:rgba(234,161,44,0.15); --ind-color:var(--warn); }
+    .ind-danger { background:rgba(248,68,57,0.15); --ind-color:var(--danger); }
+    .node-info { flex:1; }
+    .node-name { font-size:15px; font-weight:700; color:var(--text); }
+    .node-loc { font-size:11px; color:var(--text3); font-family:'Space Mono',monospace; margin-top:2px; letter-spacing:1px; }
+    .node-metrics { display:flex; gap:8px; margin-top:8px; }
+    .metric-pill {
+      font-size:10px; font-family:'Space Mono',monospace; padding:3px 8px;
+      border-radius:99px; background:rgba(255,255,255,0.04);
+      border:1px solid var(--border); color:var(--text2);
+    }
+    .metric-pill.hi { color:var(--danger); border-color:rgba(248,68,57,0.3); }
+    .node-arrow { color:var(--text3); font-size:18px; }
+
+    /* ── STATS PAGE ── */
+    .stats-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; padding:16px; }
+    .stat-card {
+      background:var(--card); border:1px solid var(--border); border-radius:var(--radius);
+      padding:16px; text-align:center; cursor:pointer; transition:all 0.2s;
+    }
+    .stat-card:active { transform:scale(0.96); box-shadow:var(--glow); }
+    .stat-icon { font-size:28px; margin-bottom:8px; }
+    .stat-num { font-size:32px; font-weight:800; color:var(--primary); font-family:'Space Mono',monospace; }
+    .stat-label { font-size:10px; color:var(--text3); letter-spacing:2px; margin-top:4px; }
+    .chart-wrap { margin:0 16px 16px; background:var(--card); border:1px solid var(--border); border-radius:var(--radius); padding:16px; }
+    .chart-title { font-size:11px; letter-spacing:2px; color:var(--text3); font-family:'Space Mono',monospace; }
+    .chart-bars { display:flex; align-items:flex-end; gap:4px; height:112px; }
+    .chart-bar-wrap { flex:1; min-width:0; display:flex; flex-direction:column; align-items:center; gap:0; }
+    .chart-val { font-size:7px; font-family:'Space Mono',monospace; color:var(--text3); white-space:nowrap; line-height:14px; height:14px; flex-shrink:0; }
+    .chart-bar {
+      width:100%; border-radius:3px 3px 0 0; flex-shrink:0;
+      background:linear-gradient(to top, var(--primary-d), var(--primary));
+      transition:height 0.7s cubic-bezier(0.16,1,0.3,1);
+    }
+    .chart-bar.hi { background:linear-gradient(to top, #6B0C08, var(--danger)); }
+    .chart-label { font-size:7px; font-family:'Space Mono',monospace; color:var(--text3); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; text-align:center; line-height:14px; height:14px; flex-shrink:0; }
+
+    /* ── SURVEY PAGE ── */
+    .survey-header { padding:24px 16px 16px; text-align:center; }
+    .survey-title { font-size:22px; font-weight:800; color:var(--text); }
+    .survey-sub { font-size:12px; color:var(--text2); margin-top:6px; letter-spacing:1px; }
+    .survey-progress { margin:0 16px 20px; }
+    .progress-bar { height:3px; background:var(--bg3); border-radius:3px; overflow:hidden; }
+    .progress-fill { height:100%; background:linear-gradient(90deg,var(--primary),var(--orange)); border-radius:3px; transition:width 0.5s ease; }
+    .progress-text { font-size:10px; font-family:'Space Mono',monospace; color:var(--text3); margin-top:6px; text-align:right; }
+    .survey-q { padding:0 16px 20px; }
+    .q-text { font-size:16px; font-weight:700; color:var(--text); margin-bottom:16px; line-height:1.5; }
+    .q-options { display:flex; flex-direction:column; gap:10px; }
+    .q-opt {
+      background:var(--card); border:1.5px solid var(--border); border-radius:var(--radius);
+      padding:16px; display:flex; align-items:center; gap:12px;
+      cursor:pointer; transition:all 0.2s; font-size:14px;
+    }
+    .q-opt:active { transform:scale(0.98); }
+    .q-opt.selected { border-color:var(--primary); background:rgba(35,170,186,0.12); color:var(--primary); }
+    .q-opt-letter { width:28px; height:28px; border-radius:8px; background:var(--bg3); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; font-family:'Space Mono',monospace; font-size:12px; flex-shrink:0; }
+    .q-opt.selected .q-opt-letter { background:var(--primary); border-color:var(--primary); color:white; }
+    .btn-primary {
+      display:block; width:calc(100% - 32px); margin:0 16px; padding:16px;
+      background:linear-gradient(135deg,var(--primary),var(--teal)); border:none; border-radius:var(--radius);
+      font-family:'Syne',sans-serif; font-size:15px; font-weight:700; color:white; cursor:pointer;
+      transition:all 0.2s; letter-spacing:1px; box-shadow:0 8px 24px rgba(35,170,186,0.42);
+    }
+    .btn-primary:active { transform:scale(0.97); box-shadow:0 4px 12px rgba(35,170,186,0.28); }
+    .btn-secondary {
+      display:block; width:calc(100% - 32px); margin:10px 16px 0; padding:14px;
+      background:transparent; border:1.5px solid var(--border); border-radius:var(--radius);
+      font-family:'Syne',sans-serif; font-size:14px; font-weight:600; color:var(--text2); cursor:pointer;
+      transition:all 0.2s;
+    }
+    .btn-secondary:active { transform:scale(0.97); background:var(--card); }
+
+    /* ── PROFILE PAGE ── */
+    .profile-hero { padding:24px 16px; text-align:center; }
+    .profile-avatar {
+      width:80px; height:80px; border-radius:24px; margin:0 auto 16px;
+      background:linear-gradient(135deg,var(--primary),var(--orange));
+      display:flex; align-items:center; justify-content:center; font-size:32px;
+      box-shadow:0 0 40px rgba(35,170,186,0.45);
+    }
+    .profile-name { font-size:22px; font-weight:800; }
+    .profile-tag { font-size:11px; font-family:'Space Mono',monospace; color:var(--primary); letter-spacing:2px; margin-top:4px; }
+    .points-card {
+      margin:0 16px 16px; background:linear-gradient(135deg,#1A3E52,var(--primary-d));
+      border-radius:var(--radius); padding:20px; text-align:center; position:relative; overflow:hidden;
+      border:1px solid rgba(35,170,186,0.25);
+    }
+    .points-card::before {
+      content:''; position:absolute; top:-30px; right:-30px; width:100px; height:100px;
+      border-radius:50%; background:rgba(255,255,255,0.05);
+    }
+    .points-num { font-size:48px; font-weight:800; font-family:'Space Mono',monospace; }
+    .points-label { font-size:11px; letter-spacing:3px; opacity:0.7; }
+    .achievement-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; padding:0 16px 16px; }
+    .achievement {
+      background:var(--card); border:1px solid var(--border); border-radius:var(--radius);
+      padding:12px 8px; text-align:center; cursor:pointer;
+    }
+    .achievement-icon { font-size:24px; margin-bottom:6px; }
+    .achievement-name { font-size:10px; color:var(--text2); letter-spacing:1px; }
+    .achievement.locked { opacity:0.4; }
+    .menu-list { margin:0 16px; }
+    .menu-item {
+      background:var(--card); border:1px solid var(--border); border-radius:var(--radius);
+      padding:16px; display:flex; align-items:center; gap:14px; margin-bottom:8px;
+      cursor:pointer; transition:all 0.2s;
+    }
+    .menu-item:active { transform:scale(0.98); background:var(--bg3); }
+    .menu-icon { width:40px; height:40px; border-radius:12px; background:rgba(35,170,186,0.1); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; font-size:18px; flex-shrink:0; }
+    .menu-label { flex:1; font-size:15px; font-weight:600; }
+    .menu-arrow { color:var(--text3); }
+
+    /* ── BOTTOM NAV ── */
+    .bottom-nav {
+      flex-shrink:0; background:rgba(10,28,36,0.97); backdrop-filter:blur(24px);
+      border-top:1px solid var(--border); padding:8px 8px env(safe-area-inset-bottom,8px);
+      display:grid; grid-template-columns:repeat(4,1fr); z-index:100;
+      box-shadow:0 -1px 0 var(--border), 0 -8px 24px rgba(0,0,0,0.4);
+    }
+    .nav-item {
+      display:flex; flex-direction:column; align-items:center; gap:4px;
+      padding:8px 4px; cursor:pointer; border-radius:var(--radius-sm);
+      transition:all 0.2s; color:var(--text3); border:none; background:transparent;
+    }
+    .nav-item:active { transform:scale(0.9); }
+    .nav-item.active { color:var(--primary); background:rgba(35,170,186,0.09); }
+    .nav-icon { font-size:22px; line-height:1; transition:transform 0.2s; display:flex; align-items:center; justify-content:center; height:26px; }
+    .nav-item.active .nav-icon { transform:scale(1.1); }
+    .nav-label { font-size:9px; font-family:'Space Mono',monospace; letter-spacing:1px; }
+    .nav-dot { width:4px; height:4px; border-radius:50%; background:var(--primary); margin-top:2px; opacity:0; transition:opacity 0.2s; }
+    .nav-item.active .nav-dot { opacity:1; }
+
+    /* ── TOAST ── */
+    .toast {
+      position:fixed; bottom:90px; left:50%; transform:translateX(-50%) translateY(20px);
+      background:var(--card); border:1px solid var(--border); border-radius:10px;
+      padding:10px 18px; font-size:13px; color:var(--text); white-space:nowrap;
+      opacity:0; transition:all 0.3s; z-index:9000; backdrop-filter:blur(20px);
+      box-shadow:var(--shadow);
+    }
+    .toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+
+    /* ── MODAL ── */
+    .modal-backdrop {
+      position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:800;
+      display:none; align-items:flex-end;
+    }
+    .modal-backdrop.open { display:flex; animation:backdropIn 0.25s ease; }
+    @keyframes backdropIn { from{opacity:0;} to{opacity:1;} }
+    .modal {
+      width:100%; background:var(--bg2); border-radius:24px 24px 0 0;
+      padding:20px 20px env(safe-area-inset-bottom,20px);
+      animation:modalIn 0.35s cubic-bezier(0.16,1,0.3,1);
+    }
+    @keyframes modalIn { from{transform:translateY(100%);} to{transform:translateY(0);} }
+    .modal-handle { width:36px; height:4px; border-radius:2px; background:var(--border); margin:0 auto 20px; }
+    .modal-title { font-size:20px; font-weight:800; margin-bottom:16px; }
+
+    /* ── RIPPLE ── */
+    .ripple { position:relative; overflow:hidden; }
+    .ripple-effect {
+      position:absolute; border-radius:50%; background:rgba(35,170,186,0.28);
+      transform:scale(0); animation:rippleAnim 0.6s linear;
+      pointer-events:none;
+    }
+    @keyframes rippleAnim {
+      to{ transform:scale(4); opacity:0; }
+    }
+
+    /* Leaflet dark — Waze style */
+    .leaflet-tile { filter:invert(1) hue-rotate(185deg) brightness(0.78) saturate(1.35) contrast(0.95); }
+    .leaflet-container { background:#0A1C24; }
+    .leaflet-popup-content-wrapper {
+      background:var(--bg2); border:1px solid var(--border);
+      border-radius:var(--radius-sm); box-shadow:var(--shadow); color:var(--text);
+    }
+    .leaflet-popup-tip { background:var(--bg2); }
+    .leaflet-popup-close-button { color:var(--text2) !important; }
+    .leaflet-control-attribution {
+      background:rgba(10,28,36,0.9) !important; color:var(--text3) !important;
+      font-size:9px !important;
+    }
+    .leaflet-control-attribution a { color:var(--primary) !important; }
+
+    /* ── CHART STREAMING ── */
+    .chart-live-badge {
+      font-size:8px; font-family:'Space Mono',monospace; letter-spacing:1px;
+      color:var(--orange); background:rgba(234,161,44,0.12); border:1px solid rgba(234,161,44,0.32);
+      padding:2px 8px; border-radius:99px; animation:badgePulse 1.5s ease infinite;
+      white-space:nowrap;
+    }
+    .chart-container { position:relative; }
+    .chart-limit-line {
+      position:absolute; left:0; right:0;
+      border-top:1.5px dashed rgba(234,161,44,0.55); z-index:2; pointer-events:none;
+      transition:bottom 0.5s ease;
+    }
+    .chart-limit-tag {
+      position:absolute; right:0; bottom:3px;
+      font-size:7px; color:var(--warn); font-family:'Space Mono',monospace;
+    }
+    .chart-label-now { color:var(--accent) !important; }
+    .chart-footer { display:flex; justify-content:space-between; margin-top:6px; }
+
+    /* ── SPARKLINES ── */
+    .sparkline { display:block; margin-top:5px; overflow:visible; }
+    .sparkline path { fill:none; stroke:currentColor; stroke-width:1.5; opacity:0.55; stroke-linecap:round; stroke-linejoin:round; }
+
+    /* ── MAP LOCATE BUTTON ── */
+    .map-locate-btn {
+      position:absolute; bottom:14px; right:14px; z-index:501;
+      width:46px; height:46px; border-radius:14px;
+      background:var(--bg2); border:1.5px solid var(--border);
+      display:flex; align-items:center; justify-content:center;
+      cursor:pointer; color:var(--primary); box-shadow:0 4px 20px rgba(0,0,0,0.5);
+      transition:all 0.2s;
+    }
+    .map-locate-btn:active { transform:scale(0.90); background:var(--primary-d); color:white; }
+    .map-locate-btn.locating svg { animation:spinLoc 1s linear infinite; }
+    .map-locate-btn.located { border-color:var(--primary); box-shadow:0 0 16px rgba(35,170,186,0.45); }
+    @keyframes spinLoc { to { transform:rotate(360deg); } }
+
+    /* ── SCENARIO TABS ── */
+    .scenario-tabs {
+      display:flex; gap:6px; padding:0 16px 14px;
+    }
+    .sc-tab {
+      flex:1; border:1.5px solid var(--border); border-radius:var(--radius-sm);
+      background:var(--card); padding:9px 4px; cursor:pointer;
+      display:flex; flex-direction:column; align-items:center; gap:3px;
+      transition:all 0.2s; color:var(--text2);
+    }
+    .sc-tab:active { transform:scale(0.95); }
+    .sc-tab.active {
+      border-color:var(--primary); background:rgba(35,170,186,0.12);
+      box-shadow:0 0 12px rgba(35,170,186,0.22);
+    }
+    .sc-tab-label {
+      font-size:9px; font-family:'Space Mono',monospace; letter-spacing:1px; font-weight:700;
+      color:inherit;
+    }
+    .sc-tab.active .sc-tab-label { color:var(--primary); }
+    .sc-tab-time { font-size:8px; color:var(--text3); font-family:'Space Mono',monospace; }
+    .sc-tab.active .sc-tab-time { color:var(--primary-l); }
+
+    /* ── COUNTER FLASH ── */
+    @keyframes flashVal {
+      0%{ opacity:1; } 30%{ opacity:0.3; } 100%{ opacity:1; }
+    }
+    .val-flash { animation:flashVal 0.4s ease; }
+
+    /* ══════════════════════════════════════════
+       LIGHT MODE — Waze-style white interface
+    ══════════════════════════════════════════ */
+    body.light {
+      --bg:     #F0F5F8;
+      --bg2:    #FFFFFF;
+      --bg3:    #E2EBF2;
+      --card:   #FFFFFF;
+      --text:   #172530;
+      --text2:  #4A6878;
+      --text3:  #7A9AAA;
+      --border: rgba(35,170,186,0.22);
+      --shadow: 0 2px 16px rgba(0,50,80,0.10);
+      --glow:   0 0 20px rgba(35,170,186,0.18);
+    }
+    body.light { background:var(--bg); }
+
+    /* Header / nav */
+    body.light .header {
+      background:rgba(240,245,248,0.97) !important;
+      box-shadow:0 1px 0 var(--border), 0 2px 14px rgba(0,50,80,0.08) !important;
+    }
+    body.light .bottom-nav {
+      background:rgba(240,245,248,0.97) !important;
+      box-shadow:0 -1px 0 var(--border), 0 -4px 14px rgba(0,50,80,0.07) !important;
+    }
+
+    /* Map */
+    body.light #map { border-bottom:1px solid var(--border); }
+    body.light .map-overlay {
+      background:linear-gradient(to bottom,rgba(240,245,248,0.35) 0%,transparent 35%,transparent 65%,rgba(240,245,248,0.65) 100%) !important;
+    }
+    body.light .leaflet-tile { filter:none !important; }
+    body.light .leaflet-container { background:#E8EEF4 !important; }
+    body.light .leaflet-popup-content-wrapper {
+      background:#FFFFFF !important; color:var(--text) !important;
+      border:1px solid var(--border) !important;
+    }
+    body.light .leaflet-popup-tip { background:#FFFFFF !important; }
+    body.light .leaflet-control-attribution {
+      background:rgba(240,245,248,0.92) !important;
+    }
+
+    /* Map controls */
+    body.light .heat-legend {
+      background:rgba(255,255,255,0.95) !important;
+      box-shadow:0 2px 12px rgba(0,50,80,0.10) !important;
+    }
+    body.light .map-action-btn {
+      background:rgba(255,255,255,0.94) !important;
+      box-shadow:0 2px 10px rgba(0,50,80,0.12) !important;
+    }
+
+    /* Cards & surfaces */
+    body.light .aqi-card,
+    body.light .node-card,
+    body.light .stat-card,
+    body.light .chart-wrap,
+    body.light .achievement,
+    body.light .menu-item,
+    body.light .q-opt,
+    body.light .route-card,
+    body.light .sc-tab {
+      box-shadow:0 2px 10px rgba(0,50,80,0.07);
+    }
+    body.light .points-card {
+      background:linear-gradient(135deg,#1A7D8A,#23AABA) !important;
+      color:#FFFFFF !important;
+    }
+    body.light .points-card .points-num,
+    body.light .points-card .points-label { color:#FFFFFF !important; opacity:1 !important; }
+
+    /* Modal */
+    body.light .modal { background:#FFFFFF !important; }
+    body.light .modal-backdrop { background:rgba(0,50,80,0.4) !important; }
+    body.light .modal-handle { background:var(--border) !important; }
+
+    /* Toast */
+    body.light .toast {
+      background:#FFFFFF !important;
+      border:1px solid var(--border) !important;
+      box-shadow:0 4px 20px rgba(0,50,80,0.12) !important;
+    }
+
+    /* Search */
+    body.light .search-overlay { background:var(--bg) !important; }
+    body.light .search-bar-row { background:#FFFFFF !important; border-bottom:1px solid var(--border) !important; }
+    body.light .search-input { background:#F0F5F8 !important; color:var(--text) !important; }
+
+    /* Alert banner light */
+    body.light .alert-banner {
+      background:rgba(248,68,57,0.08) !important;
+    }
+
+    /* Splash light */
+    body.light #splash { background:var(--bg) !important; }
+
+    /* Nav item active light — stronger contrast */
+    body.light .nav-item.active { background:rgba(35,170,186,0.12) !important; }
+    body.light .nav-item { color:#7A9AAA; }
+    body.light .nav-item.active { color:var(--primary); }
+
+    /* Route bg */
+    body.light .route-card { background:var(--bg3) !important; }
+    body.light .route-card.best { background:rgba(61,190,108,0.08) !important; }
+
+    /* Theme toggle icon */
+    .theme-btn-icon { font-size:16px; line-height:1; }
+
+    /* ── NAV ACTIVE INDICATOR ── */
+    .nav-item { position:relative; }
+    .nav-item.active::before {
+      content:''; position:absolute; top:0; left:18%; right:18%;
+      height:2px; background:var(--primary); border-radius:0 0 3px 3px;
+    }
+
+    /* ── NUMERIC PRECISION ── */
+    .aqi-value, .stat-num, .points-num { font-variant-numeric:tabular-nums; }
+
+    /* ── SECTION TITLE READABILITY ── */
+    .section-title { letter-spacing:2px; }
+    .chart-title { letter-spacing:1.5px; }
+    .aqi-label { letter-spacing:1.5px; }
+    .nav-label { letter-spacing:1px; }
+
+    /* ── LOGO ICON COLOR SYNC ── */
+    .logo-icon { box-shadow:0 0 16px rgba(35,170,186,0.5); }
+
+    /* ── RESPONSIVE — small phones ── */
+    @media (max-width:340px) {
+      .aqi-card { min-width:108px; padding:12px; }
+      .aqi-value { font-size:22px; }
+      .nav-label { font-size:8px; }
+      .stat-num { font-size:26px; }
+      .achievement-grid { grid-template-columns:repeat(3,1fr); gap:8px; }
+    }
+
+    /* ── RESPONSIVE — standard phones ── */
+    @media (min-width:400px) {
+      .aqi-value { font-size:30px; }
+      .stat-num { font-size:34px; }
+      .aqi-card { min-width:145px; }
+      .node-name { font-size:16px; }
+    }
+
+    /* ── RESPONSIVE — large phones / tablets ── */
+    @media (min-width:600px) {
+      #map { height:400px; }
+      .map-overlay { height:400px; }
+      .stats-grid { grid-template-columns:repeat(4,1fr); }
+      .aqi-card { min-width:160px; padding:16px 18px; }
+      .aqi-value { font-size:32px; }
+      .stat-num { font-size:40px; }
+      .achievement-grid { grid-template-columns:repeat(6,1fr); }
+      .points-num { font-size:56px; }
+      .q-text { font-size:18px; }
+      .header { padding:env(safe-area-inset-top,18px) 24px 14px; }
+      .section { padding:20px 24px; }
+      .stats-grid, .chart-wrap { margin-left:8px; margin-right:8px; }
+    }
+
+    /* ── RESPONSIVE — very large ── */
+    @media (min-width:800px) {
+      #app { max-width:480px; margin:0 auto; }
+      html, body { background:#040E14; }
+    }
+
+    /* ── SEARCH OVERLAY ── */
+    .search-overlay {
+      position:fixed; inset:0; z-index:2000;
+      background:var(--bg); display:flex; flex-direction:column;
+      transform:translateY(-100%); opacity:0;
+      transition:transform 0.32s cubic-bezier(0.16,1,0.3,1), opacity 0.25s;
+      pointer-events:none;
+    }
+    .search-overlay.open { transform:translateY(0); opacity:1; pointer-events:all; }
+    .search-bar-row {
+      display:flex; align-items:center; gap:10px;
+      padding:env(safe-area-inset-top,16px) 16px 12px;
+      background:var(--bg2); border-bottom:1px solid var(--border); flex-shrink:0;
+    }
+    .search-back-btn {
+      width:38px; height:38px; border-radius:10px; border:none;
+      background:transparent; color:var(--text2); cursor:pointer;
+      display:flex; align-items:center; justify-content:center; flex-shrink:0;
+    }
+    .search-back-btn:active { color:var(--text); }
+    .search-input {
+      flex:1; background:var(--card); border:1.5px solid var(--border);
+      border-radius:10px; padding:10px 14px; font-size:15px;
+      color:var(--text); font-family:'Syne',sans-serif; outline:none;
+      transition:border-color 0.2s;
+    }
+    .search-input:focus { border-color:var(--primary); }
+    .search-input::placeholder { color:var(--text3); }
+    .search-results-list { flex:1; overflow-y:auto; padding:8px; }
+    .search-results-list::-webkit-scrollbar { display:none; }
+    .search-section-label {
+      font-size:9px; letter-spacing:2px; color:var(--text3);
+      font-family:'Space Mono',monospace; padding:10px 8px 6px;
+    }
+    .search-result-item {
+      display:flex; align-items:center; gap:12px; padding:12px;
+      border-radius:var(--radius-sm); cursor:pointer; transition:background 0.15s;
+    }
+    .search-result-item:active { background:var(--card); }
+    .search-result-icon {
+      width:38px; height:38px; border-radius:10px;
+      background:var(--card); border:1px solid var(--border);
+      display:flex; align-items:center; justify-content:center; font-size:17px; flex-shrink:0;
+    }
+    .search-result-name { font-size:14px; font-weight:600; color:var(--text); }
+    .search-result-sub { font-size:11px; color:var(--text3); margin-top:2px; font-family:'Space Mono',monospace; }
+    .search-loading { text-align:center; padding:32px 16px; color:var(--text3); font-size:12px; font-family:'Space Mono',monospace; letter-spacing:2px; }
+
+    /* ── MAP BTN GROUP ── */
+    .map-btn-group {
+      position:absolute; bottom:16px; right:14px; z-index:501;
+      display:flex; flex-direction:column; gap:8px;
+    }
+    .map-action-btn {
+      width:44px; height:44px; border-radius:12px;
+      background:rgba(10,28,36,0.93); border:1.5px solid var(--border);
+      display:flex; align-items:center; justify-content:center;
+      cursor:pointer; color:var(--text2); box-shadow:0 4px 16px rgba(0,0,0,0.5);
+      transition:all 0.2s; backdrop-filter:blur(12px);
+    }
+    .map-action-btn:active { transform:scale(0.9); background:var(--primary-d); color:white; }
+    .map-action-btn.locating svg { animation:spinLoc 1s linear infinite; }
+    .map-action-btn.located  { border-color:var(--primary); color:var(--primary); box-shadow:0 0 14px rgba(35,170,186,0.45); }
+    .map-action-btn.heat-active { border-color:var(--orange); color:var(--orange); box-shadow:0 0 10px rgba(234,161,44,0.35); }
+    .map-action-btn.ai-active   { border-color:var(--primary-l); color:var(--primary-l); box-shadow:0 0 14px rgba(35,170,186,0.4); }
+
+    /* ── HEAT LEGEND ── */
+    .heat-legend {
+      position:absolute; left:12px; bottom:16px; z-index:501;
+      background:rgba(10,28,36,0.93); backdrop-filter:blur(12px);
+      border:1px solid var(--border); border-radius:10px;
+      padding:8px 11px; display:flex; flex-direction:column; gap:6px;
+    }
+    .heat-legend-item {
+      display:flex; align-items:center; gap:7px;
+      font-size:10px; font-family:'Space Mono',monospace; color:var(--text2); white-space:nowrap;
+    }
+    .heat-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+    .heat-dot.ok     { background:var(--green); }
+    .heat-dot.warn   { background:var(--warn); }
+    .heat-dot.danger { background:var(--danger); }
+
+    /* ── AI ROUTE PANEL ── */
+    .ai-route-intro { font-size:12px; color:var(--text2); margin-bottom:14px; line-height:1.65; }
+    .route-card {
+      background:var(--bg3); border:1.5px solid var(--border);
+      border-radius:var(--radius); padding:14px; margin-bottom:10px;
+      cursor:pointer; transition:all 0.2s;
+    }
+    .route-card:active { transform:scale(0.98); }
+    .route-card.best  { border-color:var(--green);  background:rgba(61,190,108,0.06); }
+    .route-card.mid   { border-color:var(--warn); }
+    .route-card.worst { border-color:var(--danger); }
+    .route-card-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
+    .route-card-name { font-size:14px; font-weight:700; color:var(--text); }
+    .route-badge { font-size:9px; font-family:'Space Mono',monospace; letter-spacing:1px; padding:3px 8px; border-radius:99px; }
+    .route-badge.best  { background:rgba(61,190,108,0.15); color:var(--green); }
+    .route-badge.mid   { background:rgba(234,161,44,0.15); color:var(--warn); }
+    .route-badge.worst { background:rgba(248,68,57,0.15);  color:var(--danger); }
+    .route-via { font-size:11px; color:var(--text3); font-family:'Space Mono',monospace; margin-bottom:10px; }
+    .route-score-row { display:flex; align-items:center; gap:8px; margin-bottom:5px; }
+    .route-score-label { font-size:10px; color:var(--text3); width:88px; flex-shrink:0; font-family:'Space Mono',monospace; }
+    .route-score-bar { flex:1; height:5px; background:var(--bg); border-radius:99px; overflow:hidden; }
+    .route-score-fill { height:100%; border-radius:99px; transition:width 0.8s cubic-bezier(0.16,1,0.3,1); }
+    .fill-green { background:var(--green); }
+    .fill-warn  { background:var(--warn); }
+    .fill-danger{ background:var(--danger); }
+    .route-score-val { font-size:10px; font-family:'Space Mono',monospace; color:var(--text2); width:30px; text-align:right; }
+    .route-card-footer { display:flex; gap:6px; margin-top:10px; flex-wrap:wrap; }
+    .route-tag { font-size:10px; font-family:'Space Mono',monospace; padding:3px 8px; border-radius:99px; background:rgba(255,255,255,0.04); border:1px solid var(--border); color:var(--text3); }
+    .route-tag.good { color:var(--green);  border-color:rgba(61,190,108,0.3); background:rgba(61,190,108,0.06); }
+    .route-tag.bad  { color:var(--danger); border-color:rgba(248,68,57,0.3); background:rgba(248,68,57,0.06); }
+    .ai-disclaimer { font-size:10px; color:var(--text3); text-align:center; font-family:'Space Mono',monospace; margin-top:8px; line-height:1.6; }
+  </style>
+</head>
+<body>
+
+<!-- SPLASH -->
+<div id="splash">
+  <div class="splash-rings">
+    <div class="splash-ring"></div>
+    <div class="splash-ring"></div>
+    <div class="splash-ring"></div>
+    <div class="splash-ring"></div>
+    <div class="splash-core"></div>
+  </div>
+  <div class="splash-logo">CIUDATA</div>
+  <div class="splash-sub">VIGILANCIA · TACNA · PERÚ</div>
+  <div class="splash-bar"><div class="splash-bar-fill"></div></div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <!-- HEADER -->
+  <header class="header">
+    <div class="header-logo">
+      <div class="logo-icon">
+        <svg fill="none" viewBox="0 0 24 24" stroke="white" stroke-width="2.5">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z" stroke-dasharray="4 2"/>
+          <path d="M12 8v4l3 3"/>
+        </svg>
+      </div>
+      <div>
+        <div class="logo-text">CIU<span>DATA</span></div>
+      </div>
+    </div>
+    <div class="header-badge">⬤ EN VIVO</div>
+    <div class="header-right">
+      <button class="icon-btn" onclick="openSearch()" title="Buscar dirección">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      </button>
+      <button class="icon-btn" id="themeBtn" onclick="toggleTheme()" title="Cambiar tema">
+        <svg id="themeBtnIcon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+        </svg>
+      </button>
+      <button class="icon-btn" onclick="openNotifications()">🔔</button>
+      <button class="icon-btn" id="headerLocateBtn" onclick="locateMe()">📍</button>
+    </div>
+  </header>
+
+  <!-- CONTENT -->
+  <div class="content">
+
+    <!-- PAGE: MAPA -->
+    <div class="page active" id="page-map">
+      <div class="map-wrap">
+        <div id="map"></div>
+        <div class="map-overlay"></div>
+
+        <!-- Leyenda zonas de calor -->
+        <div class="heat-legend" id="heatLegend">
+          <div class="heat-legend-item"><span class="heat-dot danger"></span>Crítico PM2.5</div>
+          <div class="heat-legend-item"><span class="heat-dot warn"></span>Moderado</div>
+          <div class="heat-legend-item"><span class="heat-dot ok"></span>Bueno</div>
+        </div>
+
+        <!-- Grupo de acciones del mapa -->
+        <div class="map-btn-group">
+          <button class="map-action-btn" id="locateBtn" onclick="locateMe()" title="Centrar ubicación">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>
+            </svg>
+          </button>
+          <button class="map-action-btn heat-active" id="heatBtn" onclick="toggleHeat()" title="Zonas de calor">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
+            </svg>
+          </button>
+          <button class="map-action-btn" id="aiRoutesBtn" onclick="openAIRoutes()" title="Rutas IA">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="alert-banner" id="alertBanner">
+        <div class="alert-dot" id="alertDot"></div>
+        <div class="alert-text" id="alertText">
+          <strong>⚠ Alerta PM2.5 — Av. Bolognesi</strong>
+          187 µg/m³ · 3× límite ECA · Zona crítica activa
+        </div>
+      </div>
+
+      <div class="aqi-strip">
+        <div class="aqi-card" id="aqi-card-pm25" style="--indicator-color:var(--danger)" onclick="showMetricDetail('PM2.5')">
+          <div class="aqi-label">PM2.5</div>
+          <div class="aqi-value" id="val-pm25">187</div>
+          <div class="aqi-unit">µg/m³</div>
+          <div class="aqi-status" id="aqi-status-pm25">⚠ Crítico</div>
+          <svg class="sparkline" id="spark-pm25" viewBox="0 0 100 16" preserveAspectRatio="none" style="width:100%;height:16px;"></svg>
+        </div>
+        <div class="aqi-card" id="aqi-card-co2" style="--indicator-color:var(--warn)" onclick="showMetricDetail('CO₂')">
+          <div class="aqi-label">CO₂</div>
+          <div class="aqi-value" id="val-co2">650</div>
+          <div class="aqi-unit">ppm</div>
+          <div class="aqi-status" id="aqi-status-co2">↑ Elevado</div>
+          <svg class="sparkline" id="spark-co2" viewBox="0 0 100 16" preserveAspectRatio="none" style="width:100%;height:16px;"></svg>
+        </div>
+        <div class="aqi-card" id="aqi-card-uv" style="--indicator-color:var(--green)" onclick="showMetricDetail('UV')">
+          <div class="aqi-label">UV</div>
+          <div class="aqi-value" id="val-uv">5</div>
+          <div class="aqi-unit">índice</div>
+          <div class="aqi-status" id="aqi-status-uv">Moderado</div>
+          <svg class="sparkline" id="spark-uv" viewBox="0 0 100 16" preserveAspectRatio="none" style="width:100%;height:16px;"></svg>
+        </div>
+        <div class="aqi-card" id="aqi-card-oz" style="--indicator-color:var(--warn)" onclick="showMetricDetail('Ozono')">
+          <div class="aqi-label">OZONO</div>
+          <div class="aqi-value" id="val-oz">94</div>
+          <div class="aqi-unit">µg/m³</div>
+          <div class="aqi-status" id="aqi-status-oz">↑ Moderado</div>
+          <svg class="sparkline" id="spark-oz" viewBox="0 0 100 16" preserveAspectRatio="none" style="width:100%;height:16px;"></svg>
+        </div>
+        <div class="aqi-card" id="aqi-card-tmp" style="--indicator-color:var(--green)" onclick="showMetricDetail('Temp')">
+          <div class="aqi-label">TEMP</div>
+          <div class="aqi-value" id="val-tmp">18</div>
+          <div class="aqi-unit">°C</div>
+          <div class="aqi-status" id="aqi-status-tmp">Fresco</div>
+          <svg class="sparkline" id="spark-tmp" viewBox="0 0 100 16" preserveAspectRatio="none" style="width:100%;height:16px;"></svg>
+        </div>
+      </div>
+
+      <div class="scenario-tabs" id="scenarioTabs">
+        <button class="sc-tab active" onclick="switchScenario(0)">
+          <span class="sc-tab-label">HORA PUNTA</span>
+          <span class="sc-tab-time">07:00</span>
+        </button>
+        <button class="sc-tab" onclick="switchScenario(1)">
+          <span class="sc-tab-label">TARDE</span>
+          <span class="sc-tab-time">14:30</span>
+        </button>
+        <button class="sc-tab" onclick="switchScenario(2)">
+          <span class="sc-tab-label">NOCHE</span>
+          <span class="sc-tab-time">22:00</span>
+        </button>
+      </div>
+
+      <div class="section">
+        <div class="section-title">NODOS ACTIVOS — TACNA</div>
+        <div id="nodesList"></div>
+      </div>
+    </div>
+
+    <!-- PAGE: ESTADÍSTICAS -->
+    <div class="page" id="page-stats">
+      <div class="stats-grid">
+        <div class="stat-card ripple">
+          <div class="stat-icon">📡</div>
+          <div class="stat-num">3</div>
+          <div class="stat-label">NODOS ACTIVOS</div>
+        </div>
+        <div class="stat-card ripple">
+          <div class="stat-icon">⚠️</div>
+          <div class="stat-num" style="color:var(--danger)">2</div>
+          <div class="stat-label">ZONAS CRÍTICAS</div>
+        </div>
+        <div class="stat-card ripple">
+          <div class="stat-icon">👥</div>
+          <div class="stat-num">90</div>
+          <div class="stat-label">ENCUESTADOS</div>
+        </div>
+        <div class="stat-card ripple">
+          <div class="stat-icon">📊</div>
+          <div class="stat-num">96%</div>
+          <div class="stat-label">ADOPCIÓN</div>
+        </div>
+      </div>
+
+      <div class="chart-wrap">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+          <div class="chart-title" style="margin:0">PM2.5 — EN VIVO</div>
+          <span class="chart-live-badge">● STREAMING</span>
+        </div>
+        <div class="chart-container">
+          <div class="chart-limit-line" id="chartLimit">
+            <span class="chart-limit-tag">ECA 25</span>
+          </div>
+          <div class="chart-bars" id="chartBars"></div>
+        </div>
+        <div class="chart-footer">
+          <span style="font-size:9px;color:var(--text3);font-family:'Space Mono',monospace;">Límite ECA-Aire: 25 µg/m³</span>
+          <span style="font-size:9px;color:var(--accent);font-family:'Space Mono',monospace;" id="chartLastUpdate">● iniciando...</span>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">DATOS CLAVE — ENCUESTA CIUDADANA</div>
+        <div class="node-card">
+          <div class="node-indicator ind-danger">📉</div>
+          <div class="node-info">
+            <div class="node-name">76.6% evita zonas contaminadas</div>
+            <div class="node-loc">Sin datos formales · Ya toman decisiones</div>
+          </div>
+        </div>
+        <div class="node-card">
+          <div class="node-indicator ind-warn">🗺</div>
+          <div class="node-info">
+            <div class="node-name">95.6% usaría el mapa CIUDATA</div>
+            <div class="node-loc">Adopción proyectada · Tacna</div>
+          </div>
+        </div>
+        <div class="node-card">
+          <div class="node-indicator ind-ok">📋</div>
+          <div class="node-info">
+            <div class="node-name">70% desconoce límites ECA Aire</div>
+            <div class="node-loc">DS 003-2017-MINAM · Vacío de info</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PAGE: ENCUESTA -->
+    <div class="page" id="page-survey">
+      <div class="survey-header">
+        <div class="survey-title">Encuesta Ciudadana</div>
+        <div class="survey-sub">Ayúdanos a entender tu ciudad</div>
+      </div>
+      <div class="survey-progress">
+        <div class="progress-bar"><div class="progress-fill" id="surveyProgress" style="width:20%"></div></div>
+        <div class="progress-text" id="surveyProgressText">Pregunta 1 de 5</div>
+      </div>
+      <div id="surveyContent"></div>
+    </div>
+
+    <!-- PAGE: PERFIL -->
+    <div class="page" id="page-profile">
+      <div class="profile-hero">
+        <div class="profile-avatar">🌿</div>
+        <div class="profile-name">Ciudadano Tacna</div>
+        <div class="profile-tag">CIUDATA · USUARIO ACTIVO</div>
+      </div>
+
+      <div class="points-card">
+        <div class="points-num" id="pointsDisplay">320</div>
+        <div class="points-label">PUNTOS CIUDATA</div>
+        <div style="font-size:12px;margin-top:8px;opacity:0.8;">Canjea en sponsors locales →</div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">LOGROS</div>
+      </div>
+      <div class="achievement-grid">
+        <div class="achievement"><div class="achievement-icon">🗺</div><div class="achievement-name">EXPLORADOR</div></div>
+        <div class="achievement"><div class="achievement-icon">📊</div><div class="achievement-name">ANALISTA</div></div>
+        <div class="achievement"><div class="achievement-icon">💚</div><div class="achievement-name">ECO HERO</div></div>
+        <div class="achievement locked"><div class="achievement-icon">🏆</div><div class="achievement-name">LEYENDA</div></div>
+        <div class="achievement locked"><div class="achievement-icon">🌍</div><div class="achievement-name">GLOBAL</div></div>
+        <div class="achievement locked"><div class="achievement-icon">⭐</div><div class="achievement-name">PREMIUM</div></div>
+      </div>
+
+      <div class="section"><div class="section-title">CONFIGURACIÓN</div></div>
+      <div class="menu-list">
+        <div class="menu-item ripple" onclick="showToast('📍 Ubicación activa')">
+          <div class="menu-icon">📍</div>
+          <div class="menu-label">Mi Ubicación</div>
+          <div class="menu-arrow">›</div>
+        </div>
+        <div class="menu-item ripple" onclick="showToast('🔔 Alertas configuradas')">
+          <div class="menu-icon">🔔</div>
+          <div class="menu-label">Notificaciones</div>
+          <div class="menu-arrow">›</div>
+        </div>
+        <div class="menu-item ripple" onclick="showToast('🎁 Pronto disponible')">
+          <div class="menu-icon">🎁</div>
+          <div class="menu-label">Canjear Puntos</div>
+          <div class="menu-arrow">›</div>
+        </div>
+        <div class="menu-item ripple" onclick="showToast('📄 Normativa ECA cargada')">
+          <div class="menu-icon">📄</div>
+          <div class="menu-label">Normativa ECA Aire</div>
+          <div class="menu-arrow">›</div>
+        </div>
+      </div>
+      <div style="height:20px"></div>
+    </div>
+
+  </div><!-- /content -->
+
+  <!-- BOTTOM NAV -->
+  <nav class="bottom-nav">
+    <button class="nav-item active" onclick="switchPage('map',this)">
+      <div class="nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg></div>
+      <div class="nav-label">MAPA</div>
+      <div class="nav-dot"></div>
+    </button>
+    <button class="nav-item" onclick="switchPage('stats',this)">
+      <div class="nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></div>
+      <div class="nav-label">DATOS</div>
+      <div class="nav-dot"></div>
+    </button>
+    <button class="nav-item" onclick="switchPage('survey',this)">
+      <div class="nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div>
+      <div class="nav-label">ENCUESTA</div>
+      <div class="nav-dot"></div>
+    </button>
+    <button class="nav-item" onclick="switchPage('profile',this)">
+      <div class="nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>
+      <div class="nav-label">PERFIL</div>
+      <div class="nav-dot"></div>
+    </button>
+  </nav>
+</div>
+
+<!-- SEARCH OVERLAY -->
+<div class="search-overlay" id="searchOverlay">
+  <div class="search-bar-row">
+    <button class="search-back-btn" onclick="closeSearch()">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+    </button>
+    <input class="search-input" id="searchInput" type="text"
+      placeholder="Buscar dirección en Tacna..."
+      autocomplete="off" spellcheck="false"
+      oninput="onSearchInput(this.value)">
+  </div>
+  <div class="search-results-list" id="searchResults"></div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- MODAL -->
+<div class="modal-backdrop" id="modal" onclick="closeModal(event)">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="modalTitle"></div>
+    <div id="modalContent"></div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+// ── SPLASH ──────────────────────────────────────────────────
+window.addEventListener('load', () => {
+  const savedPoints = localStorage.getItem('ciudata_points');
+  if (savedPoints) document.getElementById('pointsDisplay').textContent = savedPoints;
+  setTimeout(() => {
+    document.getElementById('splash').classList.add('hide');
+    setTimeout(() => { document.getElementById('splash').remove(); initMap(); startLiveData(); }, 650);
+  }, 2200);
+});
+
+// ── MAP ──────────────────────────────────────────────────────
+let map, userMarker;
+function initMap() {
+  map = L.map('map', { zoomControl:false }).setView([-18.013, -70.251], 14);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+  const nodes = [
+    { pos:[-18.0133,-70.2531], name:'Nodo #001 · Av. Bolognesi', status:'danger', pm25:187 },
+    { pos:[-18.0145,-70.2480], name:'Nodo #002 · Mercado Central', status:'warn', pm25:134 },
+    { pos:[-18.0120,-70.2495], name:'Nodo #003 · Centro Histórico', status:'ok', pm25:48 },
+  ];
+  const colors = { danger:'#F84439', warn:'#EAA12C', ok:'#3DBE6C' };
+  nodes.forEach(n => {
+    const icon = L.divIcon({
+      className:'',
+      html:`<div style="width:16px;height:16px;border-radius:50%;background:${colors[n.status]};border:2px solid white;box-shadow:0 0 12px ${colors[n.status]};animation:coreGlow 2s infinite alternate;"></div>`,
+      iconSize:[16,16], iconAnchor:[8,8]
+    });
+    L.marker(n.pos, { icon }).addTo(map).bindPopup(`<b style="color:${colors[n.status]}">${n.name}</b><br>PM2.5: ${n.pm25} µg/m³`);
+  });
+
+  buildHeatZones(0);
+}
+
+let userAccuracyCircle = null;
+
+function locateMe() {
+  const btn = document.getElementById('locateBtn');
+  const hBtn = document.getElementById('headerLocateBtn');
+  if (btn) btn.classList.add('locating');
+  if (hBtn) hBtn.textContent = '⏳';
+
+  if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Geolocation) {
+    window.Capacitor.Plugins.Geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 10000 })
+      .then(pos => {
+        centerOnLocation(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy);
+      })
+      .catch(() => tryBrowserGeo(btn, hBtn));
+  } else {
+    tryBrowserGeo(btn, hBtn);
+  }
+}
+
+function tryBrowserGeo(btn, hBtn) {
+  if (!navigator.geolocation) {
+    showToast('📍 GPS no disponible en este dispositivo');
+    if (btn) btn.classList.remove('locating');
+    if (hBtn) hBtn.textContent = '📍';
+    return;
+  }
+  navigator.geolocation.getCurrentPosition(
+    pos => centerOnLocation(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy, btn, hBtn),
+    () => {
+      showToast('📍 Activa el GPS e intenta de nuevo');
+      if (btn) btn.classList.remove('locating');
+      if (hBtn) hBtn.textContent = '📍';
+    },
+    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+  );
+}
+
+function centerOnLocation(lat, lng, accuracy, btn, hBtn) {
+  if (!map) return;
+  if (!btn) btn = document.getElementById('locateBtn');
+  if (!hBtn) hBtn = document.getElementById('headerLocateBtn');
+
+  if (userMarker) { map.removeLayer(userMarker); userMarker = null; }
+  if (userAccuracyCircle) { map.removeLayer(userAccuracyCircle); userAccuracyCircle = null; }
+
+  const icon = L.divIcon({
+    className: '',
+    html: `<div style="width:14px;height:14px;border-radius:50%;background:#23AABA;border:3px solid white;box-shadow:0 0 14px rgba(35,170,186,0.75);"></div>`,
+    iconSize: [14,14], iconAnchor: [7,7]
+  });
+  userMarker = L.marker([lat, lng], { icon, zIndexOffset: 1000 }).addTo(map).bindPopup('📍 Tu ubicación');
+
+  if (accuracy && accuracy < 2000) {
+    userAccuracyCircle = L.circle([lat, lng], {
+      radius: accuracy, color: '#23AABA', fillColor: '#23AABA',
+      fillOpacity: 0.08, weight: 1, dashArray: '4,4'
+    }).addTo(map);
+  }
+
+  map.flyTo([lat, lng], 16, { animate: true, duration: 1.2 });
+
+  if (btn) { btn.classList.remove('locating'); btn.classList.add('located'); setTimeout(() => btn.classList.remove('located'), 3000); }
+  if (hBtn) hBtn.textContent = '📍';
+  showToast('📍 Ubicación encontrada');
+}
+
+// ── SCENARIOS ────────────────────────────────────────────────
+const SCENARIOS = [
+  {
+    label:'HORA PUNTA', time:'07:00–09:00',
+    alertTitle:'⚠ Alerta PM2.5 — Av. Bolognesi',
+    alertDesc:'187 µg/m³ · 3× límite ECA · Zona crítica activa',
+    danger:true,
+    aqi:{ pm25:187, pm25s:'⚠ Crítico',  pm25c:'var(--danger)',
+          co2:650,  co2s:'↑ Elevado',    co2c:'var(--warn)',
+          uv:5,     uvs:'Moderado',       uvc:'var(--cyan)',
+          oz:94,    ozs:'↑ Moderado',    ozc:'var(--purple)',
+          tmp:18,   tmps:'Fresco',        tmpc:'var(--orange)' },
+    nodes:[
+      { name:'Av. Bolognesi Norte', loc:'-18.0133, -70.2531 · Nodo #001', icon:'🏭', state:'DANGER', ind:'ind-danger', pm25:187, co2:650, uv:9 },
+      { name:'Mercado Central',     loc:'-18.0145, -70.2480 · Nodo #002', icon:'🏪', state:'WARN',   ind:'ind-warn',   pm25:134, co2:420, uv:7 },
+      { name:'Centro Histórico',    loc:'-18.0120, -70.2495 · Nodo #003', icon:'🏛', state:'OK',     ind:'ind-ok',     pm25:48,  co2:388, uv:6 },
+    ],
+    chart:[45,68,145,187,172,156,134,112],
+    hours:['01h','03h','05h','07h','09h','11h','13h','15h'],
+  },
+  {
+    label:'TARDE NORMAL', time:'13:00–15:00',
+    alertTitle:'⚡ Nivel Moderado — Av. Bolognesi',
+    alertDesc:'72 µg/m³ · Sobre límite ECA · Monitoreo activo',
+    danger:false,
+    aqi:{ pm25:72,  pm25s:'↑ Elevado',   pm25c:'var(--warn)',
+          co2:420,  co2s:'↑ Moderado',    co2c:'var(--warn)',
+          uv:8,     uvs:'Muy alto',        uvc:'var(--warn)',
+          oz:75,    ozs:'Aceptable',       ozc:'var(--purple)',
+          tmp:25,   tmps:'Cálido',         tmpc:'var(--orange)' },
+    nodes:[
+      { name:'Av. Bolognesi Norte', loc:'-18.0133, -70.2531 · Nodo #001', icon:'🏭', state:'WARN', ind:'ind-warn', pm25:72,  co2:420, uv:8 },
+      { name:'Mercado Central',     loc:'-18.0145, -70.2480 · Nodo #002', icon:'🏪', state:'WARN', ind:'ind-warn', pm25:58,  co2:400, uv:7 },
+      { name:'Centro Histórico',    loc:'-18.0120, -70.2495 · Nodo #003', icon:'🏛', state:'OK',   ind:'ind-ok',  pm25:35,  co2:375, uv:6 },
+    ],
+    chart:[95,82,75,68,62,65,72,70],
+    hours:['07h','08h','09h','10h','11h','12h','13h','14h'],
+  },
+  {
+    label:'PUNTA NOCHE', time:'18:00–20:00',
+    alertTitle:'⚠ Alerta — Bolognesi + Mercado Central',
+    alertDesc:'115 µg/m³ prom · Tráfico vehicular intenso · 2 zonas',
+    danger:true,
+    aqi:{ pm25:115, pm25s:'⚠ Alto',      pm25c:'var(--danger)',
+          co2:510,  co2s:'↑ Elevado',     co2c:'var(--warn)',
+          uv:1,     uvs:'Bajo',            uvc:'var(--cyan)',
+          oz:78,    ozs:'Moderado',        ozc:'var(--purple)',
+          tmp:20,   tmps:'Normal',         tmpc:'var(--orange)' },
+    nodes:[
+      { name:'Av. Bolognesi Norte', loc:'-18.0133, -70.2531 · Nodo #001', icon:'🏭', state:'DANGER', ind:'ind-danger', pm25:115, co2:510, uv:1 },
+      { name:'Mercado Central',     loc:'-18.0145, -70.2480 · Nodo #002', icon:'🏪', state:'WARN',   ind:'ind-warn',   pm25:89,  co2:435, uv:1 },
+      { name:'Centro Histórico',    loc:'-18.0120, -70.2495 · Nodo #003', icon:'🏛', state:'OK',     ind:'ind-ok',     pm25:42,  co2:380, uv:0 },
+    ],
+    chart:[48,55,65,80,98,115,108,95],
+    hours:['12h','13h','14h','15h','16h','17h','18h','19h'],
+  },
+];
+let currentScenario = 0;
+
+function renderNodes(s) {
+  const list = document.getElementById('nodesList');
+  list.innerHTML = s.nodes.map(n => `
+    <div class="node-card ripple" onclick="selectNode(event,this,'${n.name}','${n.state}',${n.pm25},${n.co2})">
+      <div class="node-indicator ${n.ind}">${n.icon}</div>
+      <div class="node-info">
+        <div class="node-name">${n.name}</div>
+        <div class="node-loc">${n.loc}</div>
+        <div class="node-metrics">
+          <span class="metric-pill${n.pm25>100?' hi':''}">PM2.5: ${n.pm25}</span>
+          <span class="metric-pill${n.co2>500?' hi':''}">CO₂: ${n.co2}</span>
+          <span class="metric-pill">UV: ${n.uv}</span>
+        </div>
+      </div>
+      <div class="node-arrow">›</div>
+    </div>`).join('');
+  list.querySelectorAll('.ripple').forEach(el => {
+    el.addEventListener('click', e => addRipple(el, e));
+  });
+}
+
+// ── ANIMATED COUNTER ─────────────────────────────────────────
+function animateCounter(el, to, ms) {
+  if (!el) return;
+  const dur = ms || 700;
+  const from = parseFloat(el.textContent) || 0;
+  const target = Math.round(to);
+  if (Math.abs(from - target) < 1) { el.textContent = target; return; }
+  el.classList.add('val-flash');
+  el.addEventListener('animationend', () => el.classList.remove('val-flash'), { once:true });
+  const t0 = performance.now();
+  const tick = (now) => {
+    const p = Math.min((now - t0) / dur, 1);
+    const ease = 1 - Math.pow(1 - p, 3);
+    el.textContent = Math.round(from + (target - from) * ease);
+    if (p < 1) requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+}
+
+// ── SPARKLINES ───────────────────────────────────────────────
+const sparkHistory = { pm25:[], co2:[], uv:[], oz:[], tmp:[] };
+
+function updateSparkline(id, val) {
+  const h = sparkHistory[id];
+  if (!h) return;
+  h.push(val);
+  if (h.length > 12) h.shift();
+  if (h.length < 2) return;
+  const svg = document.getElementById('spark-' + id);
+  if (!svg) return;
+  const min = Math.min(...h), max = Math.max(...h);
+  const rng = (max - min) || 1;
+  const W = 100, H = 14;
+  const pts = h.map((v, i) =>
+    `${(i / (h.length - 1) * W).toFixed(1)},${(H - (v - min) / rng * (H - 2) - 1).toFixed(1)}`
+  ).join(' L ');
+  svg.innerHTML = `<path d="M ${pts}"/>`;
+}
+
+// ── STREAMING CHART ──────────────────────────────────────────
+let pm25History = [];
+
+function renderStreamingChart() {
+  const bars = document.getElementById('chartBars');
+  if (!bars || pm25History.length === 0) return;
+  const max = Math.max(...pm25History, 40);
+  const now = new Date();
+
+  bars.innerHTML = pm25History.map((v, i) => {
+    const isLast = i === pm25History.length - 1;
+    const secAgo = (pm25History.length - 1 - i) * 3;
+    const t = new Date(now - secAgo * 1000);
+    const label = isLast
+      ? 'ahora'
+      : `${t.getHours().toString().padStart(2,'0')}:${t.getMinutes().toString().padStart(2,'0')}:${t.getSeconds().toString().padStart(2,'0')}`;
+    const pct = Math.max(4, Math.round(v / max * 84));
+    return `<div class="chart-bar-wrap">
+      <span class="chart-val">${v}</span>
+      <div class="chart-bar${v > 100 ? ' hi' : ''}" style="height:${pct}px;"></div>
+      <div class="chart-label${isLast ? ' chart-label-now' : ''}">${label}</div>
+    </div>`;
+  }).join('');
+
+  const limitEl = document.getElementById('chartLimit');
+  if (limitEl) limitEl.style.bottom = Math.round(25 / max * 84) + 14 + 'px';
+
+  const updEl = document.getElementById('chartLastUpdate');
+  if (updEl) updEl.textContent = `● ${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}:${now.getSeconds().toString().padStart(2,'0')}`;
+}
+
+function pushChartPoint() {
+  const base = SCENARIOS[currentScenario].aqi.pm25;
+  const v = Math.max(5, Math.round(base + (Math.random() * 28 - 14)));
+  pm25History.push(v);
+  if (pm25History.length > 14) pm25History.shift();
+  renderStreamingChart();
+}
+
+// ── APPLY SCENARIO ───────────────────────────────────────────
+function applyScenario(idx) {
+  currentScenario = ((idx % SCENARIOS.length) + SCENARIOS.length) % SCENARIOS.length;
+  const s = SCENARIOS[currentScenario];
+  const a = s.aqi;
+
+  document.querySelectorAll('.sc-tab').forEach((t, i) => t.classList.toggle('active', i === currentScenario));
+
+  const setCard = (id, val, status, color) => {
+    document.getElementById('aqi-card-' + id).style.setProperty('--indicator-color', color);
+    animateCounter(document.getElementById('val-' + id), val);
+    document.getElementById('aqi-status-' + id).textContent = status;
+  };
+  setCard('pm25', a.pm25, a.pm25s, a.pm25c);
+  setCard('co2',  a.co2,  a.co2s,  a.co2c);
+  setCard('uv',   a.uv,   a.uvs,   a.uvc);
+  setCard('oz',   a.oz,   a.ozs,   a.ozc);
+  setCard('tmp',  a.tmp,  a.tmps,  a.tmpc);
+
+  const dc = s.danger ? 'rgba(255,71,87,' : 'rgba(255,159,67,';
+  const cv = s.danger ? 'var(--danger)'   : 'var(--warn)';
+  const banner = document.getElementById('alertBanner');
+  banner.style.background  = dc + '0.12)';
+  banner.style.borderColor = dc + '0.3)';
+  document.getElementById('alertDot').style.background = cv;
+  const txt = document.getElementById('alertText');
+  txt.style.color = cv;
+  txt.innerHTML = '<strong>' + s.alertTitle + '</strong>' + s.alertDesc;
+
+  renderNodes(s);
+
+  pm25History = [...s.chart];
+  renderStreamingChart();
+
+  if (heatVisible && map) buildHeatZones(currentScenario);
+  if (typeof routeLayers !== 'undefined' && routeLayers.length > 0) clearRoutes();
+}
+
+function nextScenario() {
+  vibrate(10);
+  applyScenario(currentScenario + 1);
+  const s = SCENARIOS[currentScenario];
+  showToast('📊 ' + s.label + ' · ' + s.time);
+}
+
+function switchScenario(idx) {
+  if (idx === currentScenario) return;
+  vibrate(10);
+  applyScenario(idx);
+  const s = SCENARIOS[currentScenario];
+  showToast('📊 ' + s.label + ' · ' + s.time);
+}
+
+// ── LIVE DATA ────────────────────────────────────────────────
+function startLiveData() {
+  applyScenario(0);
+
+  setInterval(() => {
+    const a = SCENARIOS[currentScenario].aqi;
+    const jit = v => Math.round(v + (Math.random() * 10 - 5));
+    const vals = {
+      pm25: Math.max(5,   jit(a.pm25)),
+      co2:  Math.max(350, jit(a.co2)),
+      uv:   Math.min(11,  Math.max(0, jit(a.uv))),
+      oz:   Math.max(10,  jit(a.oz)),
+      tmp:  jit(a.tmp),
+    };
+    animateCounter(document.getElementById('val-pm25'), vals.pm25);
+    animateCounter(document.getElementById('val-co2'),  vals.co2);
+    animateCounter(document.getElementById('val-uv'),   vals.uv);
+    animateCounter(document.getElementById('val-oz'),   vals.oz);
+    animateCounter(document.getElementById('val-tmp'),  vals.tmp);
+    Object.entries(vals).forEach(([k, v]) => updateSparkline(k, v));
+  }, 3500);
+
+  setInterval(pushChartPoint, 3000);
+
+  setInterval(() => applyScenario(currentScenario + 1), 28000);
+}
+
+// ── NAVIGATION ───────────────────────────────────────────────
+const PAGE_IDS = ['map', 'stats', 'survey', 'profile'];
+let activePageIdx = 0;
+let isAnimating = false;
+
+function switchPage(id, btn) {
+  if (isAnimating) return;
+  vibrate(10);
+
+  const newIdx = PAGE_IDS.indexOf(id);
+  if (newIdx === activePageIdx) return;
+
+  const goRight = newIdx > activePageIdx;
+  const outPage = document.getElementById('page-' + PAGE_IDS[activePageIdx]);
+  const inPage  = document.getElementById('page-' + id);
+  isAnimating = true;
+
+  const TR = 'transform 0.28s cubic-bezier(0.4,0,0.2,1)';
+
+  // Posicionar la página entrante justo fuera de pantalla (sin transición aún)
+  inPage.style.cssText = `transform:translateX(${goRight ? '110%' : '-110%'});visibility:visible;transition:none;`;
+  inPage.getBoundingClientRect(); // reflow para que el browser registre la posición inicial
+
+  // Activar transiciones en ambas páginas
+  inPage.style.transition  = TR;
+  outPage.style.transition = TR;
+
+  // Disparar animación
+  requestAnimationFrame(() => {
+    inPage.style.transform  = 'translateX(0)';
+    outPage.style.transform = `translateX(${goRight ? '-110%' : '110%'})`;
+  });
+
+  // Actualizar nav inmediatamente (sin esperar animación)
+  document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+
+  setTimeout(() => {
+    outPage.classList.remove('active');
+    outPage.style.cssText = '';
+    inPage.classList.add('active');
+    inPage.style.cssText = '';
+    inPage.scrollTop = 0;
+    activePageIdx = newIdx;
+    isAnimating = false;
+    if (id === 'survey' && !surveyInit) initSurvey();
+    if (id === 'map' && map) map.invalidateSize();
+  }, 310);
+}
+
+// ── SURVEY ───────────────────────────────────────────────────
+const questions = [
+  { q:'¿Alguna vez has evitado ir a una zona por el tráfico o la contaminación?', opts:['Sí, lo hago seguido','Sí, pero pocas veces','No, nunca lo había pensado','No me afecta, igual voy'] },
+  { q:'Si pudieras ver contaminación peligrosa en tu celular, ¿cambiarías tu ruta?', opts:['Sí, definitivamente','Dependería del destino','No, pero me gustaría saberlo','No me importaría'] },
+  { q:'¿Sabías que existen límites ECA Aire y que el tráfico es su principal causa?', opts:['Sí, conozco los límites','Sabía que existían','No lo sabía'] },
+  { q:'¿Qué generaría más impacto para mejorar el tránsito y el aire?', opts:['Más multas y fiscalización','Ver el daño real del desorden vial','Mejor infraestructura','Educación desde el colegio'] },
+  { q:'Si existiera un mapa en tiempo real de contaminación, ¿lo usarías?', opts:['Sí, a diario','Sí, si tengo familia vulnerable','Ocasionalmente','No lo usaría'] },
+];
+let surveyQ = 0, answers = [], surveyInit = false;
+
+function initSurvey() {
+  surveyInit = true;
+  renderQuestion();
+}
+
+function renderQuestion() {
+  const q = questions[surveyQ];
+  const letters = ['A','B','C','D'];
+  const pct = ((surveyQ+1)/questions.length*100)+'%';
+  document.getElementById('surveyProgress').style.width = pct;
+  document.getElementById('surveyProgressText').textContent = `Pregunta ${surveyQ+1} de ${questions.length}`;
+  document.getElementById('surveyContent').innerHTML = `
+    <div class="survey-q">
+      <div class="q-text">${q.q}</div>
+      <div class="q-options">
+        ${q.opts.map((o,i)=>`<div class="q-opt ripple" onclick="selectOpt(this,${i})"><div class="q-opt-letter">${letters[i]}</div>${o}</div>`).join('')}
+      </div>
+    </div>
+    <button class="btn-primary" onclick="nextQuestion()">Siguiente →</button>
+    ${surveyQ>0?'<button class="btn-secondary" onclick="prevQuestion()">← Anterior</button>':''}
+  `;
+}
+
+function selectOpt(el, i) {
+  vibrate(8);
+  document.querySelectorAll('.q-opt').forEach(o => o.classList.remove('selected'));
+  el.classList.add('selected');
+  answers[surveyQ] = i;
+}
+
+function nextQuestion() {
+  if (answers[surveyQ] === undefined) { showToast('Selecciona una opción'); return; }
+  vibrate(15);
+  if (surveyQ < questions.length - 1) { surveyQ++; renderQuestion(); }
+  else { finishSurvey(); }
+}
+
+function prevQuestion() { if (surveyQ > 0) { surveyQ--; renderQuestion(); } }
+
+function resetSurvey() {
+  surveyQ = 0;
+  answers = [];
+  surveyInit = false;
+  renderQuestion();
+}
+
+function finishSurvey() {
+  const pts = parseInt(document.getElementById('pointsDisplay').textContent) + 50;
+  document.getElementById('pointsDisplay').textContent = pts;
+  localStorage.setItem('ciudata_points', pts);
+  document.getElementById('surveyContent').innerHTML = `
+    <div style="padding:32px 16px;text-align:center;">
+      <div style="font-size:64px;margin-bottom:16px;">🎉</div>
+      <div style="font-size:22px;font-weight:800;margin-bottom:8px;">¡Encuesta completada!</div>
+      <div style="font-size:13px;color:var(--text2);margin-bottom:24px;">Ganaste <span style="color:var(--green);font-weight:700;">+50 puntos</span> CIUDATA</div>
+      <button class="btn-primary" onclick="resetSurvey()">Nueva encuesta</button>
+    </div>`;
+  showToast('🎉 +50 puntos ganados');
+  vibrate([50,30,80]);
+}
+
+// ── NODE DETAIL ──────────────────────────────────────────────
+function selectNode(e, el, name, status, pm25, co2) {
+  vibrate(10);
+  const colors = { DANGER:['var(--danger)','⚠️ CRÍTICO'], WARN:['var(--warn)','⚡ MODERADO'], OK:['var(--green)','✅ NORMAL'] };
+  const [color, label] = colors[status] || colors.OK;
+  const co2Color = co2 > 600 ? 'var(--warn)' : 'var(--green)';
+  document.getElementById('modalTitle').innerHTML = `<span style="color:${color}">${label}</span> — ${name}`;
+  document.getElementById('modalContent').innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;text-align:center;">
+        <div style="font-size:10px;color:var(--text3);font-family:'Space Mono',monospace;letter-spacing:2px;">PM2.5</div>
+        <div style="font-size:28px;font-weight:800;color:${color};">${pm25}</div>
+        <div style="font-size:10px;color:var(--text2);">µg/m³ · Límite: 25</div>
+      </div>
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;text-align:center;">
+        <div style="font-size:10px;color:var(--text3);font-family:'Space Mono',monospace;letter-spacing:2px;">CO₂</div>
+        <div style="font-size:28px;font-weight:800;color:${co2Color};">${co2}</div>
+        <div style="font-size:10px;color:var(--text2);">ppm · Normal: &lt;800</div>
+      </div>
+    </div>
+    <button class="btn-primary" onclick="showToast('🗺 Ruta alternativa calculada');closeModalDirect();vibrate([10,10,20])">
+      🗺 Ver ruta alternativa
+    </button>
+    <button class="btn-secondary" onclick="closeModalDirect()">Cerrar</button>`;
+  document.getElementById('modal').classList.add('open');
+}
+
+function showMetricDetail(name) {
+  vibrate(8);
+  showToast(`📊 ${name} · Datos en tiempo real`);
+}
+
+// ── MODALS ───────────────────────────────────────────────────
+function closeModal(e) { if (e.target === e.currentTarget) closeModalDirect(); }
+function closeModalDirect() { document.getElementById('modal').classList.remove('open'); }
+
+function openNotifications() {
+  vibrate(10);
+  document.getElementById('modalTitle').textContent = '🔔 Alertas Activas';
+  document.getElementById('modalContent').innerHTML = `
+    <div class="alert-banner" style="margin:0 0 10px;">
+      <div class="alert-dot"></div>
+      <div class="alert-text"><strong>Av. Bolognesi</strong>PM2.5: 187 µg/m³ · Hace 5 min</div>
+    </div>
+    <div class="alert-banner" style="margin:0 0 10px;border-color:rgba(255,159,67,0.3);background:rgba(255,159,67,0.1);">
+      <div class="alert-dot" style="background:var(--warn)"></div>
+      <div class="alert-text" style="color:var(--warn)"><strong>Mercado Central</strong>PM2.5: 134 µg/m³ · Hace 12 min</div>
+    </div>
+    <button class="btn-secondary" onclick="closeModalDirect()">Cerrar</button>`;
+  document.getElementById('modal').classList.add('open');
+}
+
+// ── TOAST ────────────────────────────────────────────────────
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ── RIPPLE ───────────────────────────────────────────────────
+function addRipple(el, e) {
+  const rect = el.getBoundingClientRect();
+  const size = Math.max(rect.width, rect.height);
+  const r = document.createElement('span');
+  r.className = 'ripple-effect';
+  r.style.cssText = `width:${size}px;height:${size}px;left:${(e.clientX-rect.left)-size/2}px;top:${(e.clientY-rect.top)-size/2}px;`;
+  el.appendChild(r);
+  r.addEventListener('animationend', () => r.remove());
+}
+document.querySelectorAll('.ripple').forEach(el => {
+  el.addEventListener('click', e => addRipple(el, e));
+});
+
+// ── VIBRATE ──────────────────────────────────────────────────
+function vibrate(pattern) {
+  if (navigator.vibrate) navigator.vibrate(pattern);
+}
+
+// ── HEAT ZONES ───────────────────────────────────────────────
+const NODE_POSITIONS = [
+  [-18.0133, -70.2531],
+  [-18.0145, -70.2480],
+  [-18.0120, -70.2495],
+];
+let heatLayerGroup = null;
+let heatVisible    = true;
+
+function buildHeatZones(scenarioIdx) {
+  if (!map) return;
+  const s = SCENARIOS[scenarioIdx];
+  if (!heatLayerGroup) heatLayerGroup = L.layerGroup().addTo(map);
+  heatLayerGroup.clearLayers();
+
+  s.nodes.forEach((n, i) => {
+    const pos    = NODE_POSITIONS[i]; if (!pos) return;
+    const pm25   = n.pm25;
+    const color  = pm25 > 100 ? '#F84439' : pm25 > 50 ? '#EAA12C' : '#3DBE6C';
+    const intens = Math.min(1, pm25 / 220);
+    [
+      { r: 370, op: Math.min(0.11, 0.03 + intens * 0.08) },
+      { r: 200, op: Math.min(0.20, 0.07 + intens * 0.13) },
+      { r:  88, op: Math.min(0.38, 0.16 + intens * 0.22) },
+    ].forEach(ring => {
+      L.circle(pos, {
+        radius: ring.r, color: 'transparent', weight: 0,
+        fillColor: color, fillOpacity: ring.op, interactive: false,
+      }).addTo(heatLayerGroup);
+    });
+  });
+}
+
+function toggleHeat() {
+  vibrate(10);
+  heatVisible = !heatVisible;
+  const btn = document.getElementById('heatBtn');
+  if (heatVisible) {
+    buildHeatZones(currentScenario);
+    btn && btn.classList.add('heat-active');
+    showToast('Zonas de calor activadas');
+  } else {
+    if (heatLayerGroup) heatLayerGroup.clearLayers();
+    btn && btn.classList.remove('heat-active');
+    showToast('Zonas de calor desactivadas');
+  }
+}
+
+// ── ADDRESS SEARCH ────────────────────────────────────────────
+const TACNA_PLACES = [
+  { name:'Plaza de Armas de Tacna',       addr:'Centro Histórico · Tacna',     pos:[-18.0107,-70.2502], icon:'🏛' },
+  { name:'Mercado Central',               addr:'Av. San Martín · Tacna',       pos:[-18.0145,-70.2480], icon:'🏪' },
+  { name:'Hospital H. Unanue',            addr:'Av. Gustavo Pinto · Tacna',    pos:[-18.0180,-70.2520], icon:'🏥' },
+  { name:'Av. Bolognesi Norte',           addr:'Zona crítica · PM2.5 alto',    pos:[-18.0133,-70.2531], icon:'⚠️' },
+  { name:'Universidad Privada de Tacna',  addr:'Av. Jorge Basadre · Tacna',    pos:[-18.0210,-70.2520], icon:'🎓' },
+  { name:'Aeropuerto Crnl. Ciriani',      addr:'Av. Circunvalación · Tacna',   pos:[-18.0533,-70.2757], icon:'✈️' },
+  { name:'Terminal Terrestre',            addr:'Hipólito Unanue · Tacna',      pos:[-18.0100,-70.2600], icon:'🚌' },
+  { name:'Parque de la Locomotora',       addr:'Av. 2 de Mayo · Tacna',        pos:[-18.0108,-70.2482], icon:'🚂' },
+  { name:'Av. Pinto',                     addr:'Baja contaminación · Tacna',   pos:[-18.0115,-70.2540], icon:'📍' },
+  { name:'Av. Leguía',                    addr:'Tacna',                        pos:[-18.0165,-70.2490], icon:'📍' },
+  { name:'Calle Zela',                    addr:'Ruta alternativa · Tacna',     pos:[-18.0120,-70.2490], icon:'📍' },
+  { name:'ZOFRATACNA',                    addr:'Zona Franca · Tacna',          pos:[-18.0330,-70.2800], icon:'🏭' },
+];
+
+let searchTimeout = null;
+let searchMarker  = null;
+
+function openSearch() {
+  vibrate(8);
+  document.getElementById('searchOverlay').classList.add('open');
+  renderSearchSuggestions('');
+  setTimeout(() => document.getElementById('searchInput').focus(), 320);
+}
+
+function closeSearch() {
+  document.getElementById('searchOverlay').classList.remove('open');
+  document.getElementById('searchInput').value = '';
+  clearTimeout(searchTimeout);
+}
+
+function onSearchInput(val) {
+  clearTimeout(searchTimeout);
+  const q = val.trim();
+  if (q.length < 2) { renderSearchSuggestions(''); return; }
+  const local = TACNA_PLACES.filter(p =>
+    p.name.toLowerCase().includes(q.toLowerCase()) ||
+    p.addr.toLowerCase().includes(q.toLowerCase())
+  );
+  if (local.length > 0) {
+    renderSearchResults(local, 'RESULTADOS');
+  } else {
+    document.getElementById('searchResults').innerHTML =
+      '<div class="search-loading">Buscando en Tacna...</div>';
+    searchTimeout = setTimeout(() => searchNominatim(q), 700);
+  }
+}
+
+function renderSearchSuggestions(query) {
+  const places = query
+    ? TACNA_PLACES.filter(p => p.name.toLowerCase().includes(query.toLowerCase()))
+    : TACNA_PLACES.slice(0, 8);
+  renderSearchResults(places, query ? 'RESULTADOS' : 'LUGARES FRECUENTES');
+}
+
+function renderSearchResults(places, label) {
+  const el = document.getElementById('searchResults');
+  if (!places.length) {
+    el.innerHTML = '<div class="search-loading">Sin resultados</div>';
+    return;
+  }
+  el.innerHTML = `<div class="search-section-label">${label}</div>` +
+    places.map((p, i) => `
+      <div class="search-result-item" data-idx="${i}">
+        <div class="search-result-icon">${p.icon}</div>
+        <div>
+          <div class="search-result-name">${p.name}</div>
+          <div class="search-result-sub">${p.addr}</div>
+        </div>
+      </div>`).join('');
+  el.querySelectorAll('.search-result-item').forEach((item, i) => {
+    item.addEventListener('click', () => selectSearchPlace(places[i].pos, places[i].name));
+  });
+}
+
+async function searchNominatim(query) {
+  try {
+    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query + ' Tacna Peru')}&limit=5&countrycodes=pe`;
+    const resp = await fetch(url, { headers: { 'Accept-Language': 'es' } });
+    const data = await resp.json();
+    const results = data.map(d => ({
+      name: d.display_name.split(',').slice(0, 2).join(',').trim(),
+      addr: d.display_name.split(',').slice(2, 4).join(',').trim() || 'Tacna, Perú',
+      pos:  [parseFloat(d.lat), parseFloat(d.lon)],
+      icon: '📍',
+    }));
+    renderSearchResults(results, 'RESULTADOS — NOMINATIM');
+  } catch {
+    document.getElementById('searchResults').innerHTML =
+      '<div class="search-loading">Sin conexión · Mostrando locales</div>';
+    renderSearchSuggestions('');
+  }
+}
+
+function selectSearchPlace(pos, name) {
+  closeSearch();
+  if (!map) return;
+  if (searchMarker) { map.removeLayer(searchMarker); searchMarker = null; }
+  const icon = L.divIcon({
+    className: '',
+    html: `<div style="width:14px;height:14px;border-radius:50%;background:#23AABA;border:3px solid white;box-shadow:0 0 14px rgba(35,170,186,0.85);"></div>`,
+    iconSize: [14, 14], iconAnchor: [7, 7],
+  });
+  searchMarker = L.marker(pos, { icon }).addTo(map)
+    .bindPopup(`<b style="color:#23AABA">📍 ${name}</b>`).openPopup();
+  map.flyTo(pos, 16, { animate: true, duration: 1.4 });
+  if (activePageIdx !== 0) {
+    const navBtns = document.querySelectorAll('.nav-item');
+    if (navBtns[0]) switchPage('map', navBtns[0]);
+  }
+  showToast(`📍 ${name}`);
+}
+
+// ── AI ROUTE MODEL ────────────────────────────────────────────
+// Datos históricos simulados por calle (Tacna)
+// Fuentes: accidentes, incidentes, PM2.5 promedio, flujo vehicular
+const AI_STREET_DATA = {
+  bolognesi: { accidents:8,  incidents:23, pm25_avg:155, flow_pk:0.92, flow_off:0.50 },
+  pinto:     { accidents:3,  incidents:8,  pm25_avg:65,  flow_pk:0.60, flow_off:0.30 },
+  zela:      { accidents:1,  incidents:4,  pm25_avg:42,  flow_pk:0.35, flow_off:0.20 },
+  leguia:    { accidents:5,  incidents:12, pm25_avg:88,  flow_pk:0.72, flow_off:0.40 },
+  sanmartin: { accidents:2,  incidents:6,  pm25_avg:55,  flow_pk:0.45, flow_off:0.25 },
+  basadre:   { accidents:4,  incidents:10, pm25_avg:72,  flow_pk:0.65, flow_off:0.35 },
+};
+
+const AI_ROUTES = [
+  {
+    id:'route_optimal', name:'Ruta Óptima IA', tier:'best',
+    via:'C. Zela → Av. San Martín → Av. Pinto',
+    streets:['zela','sanmartin','pinto'], extra_min:4,
+    // Waypoints: norte por Plaza de Armas, luego oeste por Pinto — evita Bolognesi
+    waypoints:[[-18.0120,-70.2495],[-18.0107,-70.2502],[-18.0108,-70.2538],[-18.0126,-70.2545]],
+    fallback:[[-18.0120,-70.2495],[-18.0114,-70.2498],[-18.0112,-70.2516],[-18.0117,-70.2538],[-18.0126,-70.2542]],
+    color:'#3DBE6C',
+  },
+  {
+    id:'route_mid', name:'Ruta Alternativa', tier:'mid',
+    via:'Av. Leguía → Av. Basadre Grohmann',
+    streets:['leguia','basadre'], extra_min:2,
+    // Waypoints: sur por Leguía, luego oeste por Basadre — rodeo por el sur
+    waypoints:[[-18.0120,-70.2495],[-18.0165,-70.2490],[-18.0162,-70.2530],[-18.0145,-70.2531]],
+    fallback:[[-18.0120,-70.2495],[-18.0138,-70.2492],[-18.0155,-70.2498],[-18.0148,-70.2513]],
+    color:'#EAA12C',
+  },
+  {
+    id:'route_direct', name:'Ruta Directa', tier:'worst',
+    via:'Av. Bolognesi (zona crítica)',
+    streets:['bolognesi'], extra_min:0,
+    // Waypoints: recto por Bolognesi — pasa por la zona contaminada
+    waypoints:[[-18.0120,-70.2495],[-18.0133,-70.2531]],
+    fallback:[[-18.0120,-70.2495],[-18.0127,-70.2513],[-18.0133,-70.2531]],
+    color:'#F84439',
+  },
+];
+
+// Modelo de puntuación ponderado:
+// Contaminación 35% · Accidentes 30% · Flujo 20% · Incidentes 15%
+function scoreRoute(route) {
+  const w   = { pm25:0.35, accidents:0.30, flow:0.20, incidents:0.15 };
+  const isPk = currentScenario !== 1;
+  let T = { pm25:0, accidents:0, flow:0, incidents:0 };
+  route.streets.forEach(sid => {
+    const d = AI_STREET_DATA[sid]; if (!d) return;
+    T.pm25      += d.pm25_avg / 300;
+    T.accidents += d.accidents / 15;
+    T.flow      += isPk ? d.flow_pk : d.flow_off;
+    T.incidents += d.incidents / 40;
+  });
+  const n = route.streets.length;
+  Object.keys(T).forEach(k => T[k] = Math.min(1, T[k] / n));
+  return {
+    score: Math.round((T.pm25*w.pm25 + T.accidents*w.accidents + T.flow*w.flow + T.incidents*w.incidents) * 100),
+    breakdown: {
+      pm25:      Math.round(T.pm25 * 100),
+      accidents: Math.round(T.accidents * 100),
+      flow:      Math.round(T.flow * 100),
+      incidents: Math.round(T.incidents * 100),
+    },
+  };
+}
+
+let routeLayers = [];
+let scoredRouteOrder = [];
+
+async function fetchOSRMRoute(waypoints) {
+  const coords = waypoints.map(([lat,lng]) => `${lng},${lat}`).join(';');
+  const url = `https://router.project-osrm.org/route/v1/driving/${coords}?overview=full&geometries=geojson`;
+  const ctrl = new AbortController();
+  const tid = setTimeout(() => ctrl.abort(), 7000);
+  try {
+    const resp = await fetch(url, { signal: ctrl.signal });
+    clearTimeout(tid);
+    const data = await resp.json();
+    if (data.code !== 'Ok' || !data.routes || !data.routes[0]) return null;
+    return data.routes[0].geometry.coordinates.map(([lng,lat]) => [lat,lng]);
+  } catch {
+    clearTimeout(tid);
+    return null;
+  }
+}
+
+async function openAIRoutes() {
+  vibrate(12);
+
+  if (activePageIdx !== 0) {
+    const navBtns = document.querySelectorAll('.nav-item');
+    if (navBtns[0]) switchPage('map', navBtns[0]);
+  }
+
+  document.getElementById('modalTitle').innerHTML =
+    `<span style="font-size:11px;font-family:'Space Mono',monospace;letter-spacing:2px;color:var(--primary)">● IA ACTIVA</span><br>Calculando rutas...`;
+  document.getElementById('modalContent').innerHTML =
+    `<div class="search-loading" style="padding:48px 0;letter-spacing:2px;">🗺 Trazando calles de Tacna...</div>`;
+  document.getElementById('modal').classList.add('open');
+  document.getElementById('aiRoutesBtn').classList.add('ai-active');
+
+  const scored = AI_ROUTES
+    .map(r => ({ ...r, ...scoreRoute(r) }))
+    .sort((a, b) => a.score - b.score);
+  scoredRouteOrder = scored.map(r => r.id);
+
+  routeLayers.forEach(l => map && map.removeLayer(l));
+  routeLayers = [];
+
+  const paths = await Promise.all(
+    scored.map(r => fetchOSRMRoute(r.waypoints).catch(() => null))
+  );
+
+  scored.forEach((r, i) => {
+    const path = paths[i] || r.fallback;
+    const layer = L.polyline(path, {
+      color: r.color, weight: i === 0 ? 5 : 3,
+      opacity: i === 0 ? 0.9 : 0.45,
+      dashArray: i === 0 ? null : '10 8',
+      lineCap: 'round', lineJoin: 'round',
+    }).addTo(map);
+    routeLayers.push(layer);
+  });
+
+  if (routeLayers[0]) {
+    try { map.fitBounds(routeLayers[0].getBounds(), { padding:[60,60] }); } catch(e) {}
+  }
+
+  const usedOSRM = paths.some(p => p !== null);
+  document.getElementById('modalTitle').innerHTML =
+    `<span style="font-size:11px;font-family:'Space Mono',monospace;letter-spacing:2px;color:var(--primary)">● IA ACTIVA</span><br>Análisis de Rutas`;
+
+  document.getElementById('modalContent').innerHTML = `
+    <div>
+      <p class="ai-route-intro">
+        Rutas calculadas sobre calles reales de Tacna${usedOSRM ? ' (OpenStreetMap)' : ' (offline)'}.
+        Modelo: accidentes, PM2.5 y flujo vehicular.
+        Escenario: <strong style="color:var(--green)">${SCENARIOS[currentScenario].label}</strong>.
+      </p>
+      ${scored.map(r => buildRouteCard(r)).join('')}
+      <p class="ai-disclaimer">
+        Pesos: Contaminación 35% · Accidentes 30% · Flujo 20% · Incidentes 15%
+      </p>
+    </div>
+    <button class="btn-primary" onclick="applyBestRoute();closeModalDirect()">
+      Usar Ruta Óptima →
+    </button>
+    <button class="btn-secondary" onclick="clearRoutes();closeModalDirect()">Cancelar rutas</button>
+  `;
+}
+
+function buildRouteCard(r) {
+  const fc    = r.tier === 'best' ? 'fill-green' : r.tier === 'mid' ? 'fill-warn' : 'fill-danger';
+  const badge = r.tier === 'best' ? '✓ ÓPTIMA' : r.tier === 'mid' ? '◎ ALTERNATIVA' : '✗ EVITAR';
+  const extra = r.extra_min === 0 ? 'Más rápida' : `+${r.extra_min} min`;
+  const metrics = [
+    ['Contaminación', r.breakdown.pm25],
+    ['Accidentes',    r.breakdown.accidents],
+    ['Flujo vial',    r.breakdown.flow],
+    ['Incidentes',    r.breakdown.incidents],
+  ];
+  return `
+  <div class="route-card ${r.tier}" onclick="highlightRoute('${r.id}')">
+    <div class="route-card-header">
+      <div class="route-card-name">${r.name}</div>
+      <span class="route-badge ${r.tier}">${badge}</span>
+    </div>
+    <div class="route-via">vía ${r.via}</div>
+    ${metrics.map(([label, val]) => `
+    <div class="route-score-row">
+      <span class="route-score-label">${label}</span>
+      <div class="route-score-bar"><div class="route-score-fill ${fc}" style="width:${val}%"></div></div>
+      <span class="route-score-val">${val}</span>
+    </div>`).join('')}
+    <div class="route-card-footer">
+      <span class="route-tag ${r.tier==='best'?'good':r.tier==='worst'?'bad':''}">Riesgo: ${r.score}/100</span>
+      <span class="route-tag">${extra}</span>
+      ${r.tier==='best' ? '<span class="route-tag good">IA Recomendada</span>' : ''}
+    </div>
+  </div>`;
+}
+
+function highlightRoute(routeId) {
+  const idx = scoredRouteOrder.indexOf(routeId);
+  if (idx < 0 || !routeLayers[idx]) return;
+  routeLayers.forEach((l, i) => {
+    l.setStyle({ opacity: i === idx ? 0.92 : 0.15, weight: i === idx ? 6 : 2 });
+  });
+  try { map.fitBounds(routeLayers[idx].getBounds(), { padding:[80,80] }); } catch(e) {}
+}
+
+function applyBestRoute() {
+  if (!routeLayers.length) return;
+  routeLayers.forEach((l, i) => {
+    l.setStyle({ opacity: i === 0 ? 0.92 : 0.12, weight: i === 0 ? 5 : 2 });
+  });
+  showToast('🗺 Ruta óptima activada · Menor riesgo ambiental');
+}
+
+function clearRoutes() {
+  routeLayers.forEach(l => map && map.removeLayer(l));
+  routeLayers = [];
+  const btn = document.getElementById('aiRoutesBtn');
+  if (btn) btn.classList.remove('ai-active');
+}
+
+// ── THEME TOGGLE ─────────────────────────────────────────────
+const MOON_SVG = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>`;
+const SUN_SVG  = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>`;
+
+function applyTheme(isLight) {
+  document.body.classList.toggle('light', isLight);
+  const iconEl = document.getElementById('themeBtnIcon');
+  if (iconEl) iconEl.parentElement.innerHTML = isLight ? MOON_SVG : SUN_SVG;
+  localStorage.setItem('ciudata_theme', isLight ? 'light' : 'dark');
+  if (map) setTimeout(() => map.invalidateSize(), 50);
+}
+
+function toggleTheme() {
+  vibrate(10);
+  const isLight = !document.body.classList.contains('light');
+  applyTheme(isLight);
+  showToast(isLight ? '☀️ Modo claro activado' : '🌙 Modo oscuro activado');
+}
+
+// Init theme on load
+window.addEventListener('DOMContentLoaded', () => {
+  const saved = localStorage.getItem('ciudata_theme');
+  if (saved === 'light') applyTheme(true);
+  document.documentElement.classList.remove('prelight');
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,1423 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CIUDATA — Panel Administrativo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root {
+  --bg:#0A1C24; --bg2:#0F2530; --bg3:#152E3C; --card:#1B3848;
+  --primary:#23AABA; --primary-d:#1A7D8A; --primary-l:#2EC5D8;
+  --green:#3DBE6C; --green-d:#1F7840;
+  --orange:#EAA12C; --danger:#F84439; --warn:#EAA12C;
+  --purple:#7B6CF6; --cyan:#23AABA;
+  --text:#E8F4F8; --text2:#B0C9D9; --text3:#527A8A;
+  --border:rgba(35,170,186,0.18); --border2:rgba(35,170,186,0.10);
+  --radius:12px; --radius-sm:8px;
+  --shadow:0 8px 32px rgba(0,0,0,0.55);
+  --glow:0 0 24px rgba(35,170,186,0.28);
+  --sidebar:240px;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Syne',sans-serif;overflow:hidden;}
+
+/* ── LAYOUT ── */
+#layout{display:flex;height:100vh;}
+
+/* ── SIDEBAR ── */
+#sidebar{
+  width:var(--sidebar);flex-shrink:0;background:var(--bg2);
+  border-right:1px solid var(--border);display:flex;flex-direction:column;
+  overflow-y:auto;z-index:50;
+}
+#sidebar::-webkit-scrollbar{width:3px;}
+#sidebar::-webkit-scrollbar-thumb{background:var(--border);}
+.sidebar-logo{padding:20px 18px 16px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border);}
+.logo-icon{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,var(--primary),var(--orange));display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 0 14px rgba(35,170,186,0.45);}
+.logo-icon svg{width:18px;height:18px;}
+.logo-txt{font-family:'Space Mono',monospace;font-size:15px;font-weight:700;letter-spacing:3px;}
+.logo-txt span{color:var(--primary);}
+.logo-sub{font-size:8px;letter-spacing:2px;color:var(--orange);font-family:'Space Mono',monospace;}
+.nav-section{padding:12px 0 4px;font-size:9px;letter-spacing:3px;color:var(--text3);font-family:'Space Mono',monospace;padding-left:18px;}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 18px;cursor:pointer;border-radius:0;color:var(--text2);transition:all 0.18s;border-left:2px solid transparent;font-size:13px;font-weight:600;}
+.nav-item:hover{background:rgba(35,170,186,0.07);color:var(--text);}
+.nav-item.active{background:rgba(35,170,186,0.12);color:var(--primary);border-left-color:var(--primary);}
+.nav-item svg{width:16px;height:16px;flex-shrink:0;opacity:0.8;}
+.nav-item.active svg{opacity:1;}
+.nav-badge{margin-left:auto;font-size:9px;font-family:'Space Mono',monospace;background:rgba(248,68,57,0.2);color:var(--danger);border:1px solid rgba(248,68,57,0.35);padding:2px 6px;border-radius:99px;}
+.nav-badge.ok{background:rgba(61,190,108,0.15);color:var(--green);border-color:rgba(61,190,108,0.3);}
+.sidebar-bottom{margin-top:auto;padding:14px 18px;border-top:1px solid var(--border);}
+.user-row{display:flex;align-items:center;gap:10px;}
+.user-ava{width:32px;height:32px;border-radius:9px;background:linear-gradient(135deg,var(--primary),var(--orange));display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;}
+.user-name{font-size:12px;font-weight:700;}
+.user-role{font-size:9px;color:var(--primary);font-family:'Space Mono',monospace;letter-spacing:1px;}
+
+/* ── MAIN ── */
+#main{flex:1;display:flex;flex-direction:column;overflow:hidden;}
+
+/* ── TOPBAR ── */
+#topbar{
+  height:56px;flex-shrink:0;background:rgba(10,28,36,0.97);backdrop-filter:blur(20px);
+  border-bottom:1px solid var(--border);display:flex;align-items:center;
+  padding:0 24px;gap:16px;z-index:40;
+}
+.topbar-title{font-size:15px;font-weight:800;flex:1;}
+.topbar-title span{color:var(--text3);font-weight:400;font-size:12px;margin-left:6px;font-family:'Space Mono',monospace;}
+.live-pill{display:flex;align-items:center;gap:6px;font-size:10px;font-family:'Space Mono',monospace;letter-spacing:2px;color:var(--green);background:rgba(61,190,108,0.1);border:1px solid rgba(61,190,108,0.3);padding:4px 10px;border-radius:99px;}
+.live-dot{width:6px;height:6px;border-radius:50%;background:var(--green);animation:livePulse 1.5s ease infinite;}
+@keyframes livePulse{0%,100%{opacity:1;}50%{opacity:0.3;}}
+.topbar-btn{width:34px;height:34px;border-radius:8px;border:1px solid var(--border);background:var(--card);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text2);transition:all 0.18s;}
+.topbar-btn:hover{background:var(--primary-d);color:var(--text);}
+
+/* ── CONTENT ── */
+#content{flex:1;overflow-y:auto;padding:24px;}
+#content::-webkit-scrollbar{width:5px;}
+#content::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
+
+/* ── SECTIONS ── */
+.section{display:none;}
+.section.active{display:block;}
+.sec-head{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:20px;gap:12px;}
+.sec-title{font-size:20px;font-weight:800;}
+.sec-sub{font-size:11px;color:var(--text3);font-family:'Space Mono',monospace;letter-spacing:2px;margin-top:2px;}
+.sec-actions{display:flex;gap:8px;flex-shrink:0;}
+.btn{padding:7px 14px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--card);color:var(--text2);font-family:'Syne',sans-serif;font-size:12px;font-weight:600;cursor:pointer;transition:all 0.18s;}
+.btn:hover{background:var(--bg3);color:var(--text);}
+.btn.primary{background:var(--primary);border-color:var(--primary);color:white;}
+.btn.primary:hover{background:var(--primary-l);}
+
+/* ── GRID UTILS ── */
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;}
+.grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;}
+.grid-6{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;}
+.col-span-2{grid-column:span 2;}
+.col-span-3{grid-column:span 3;}
+.row-gap{margin-top:16px;}
+
+/* ── KPI CARD ── */
+.kpi{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:18px;position:relative;overflow:hidden;transition:all 0.2s;}
+.kpi:hover{border-color:rgba(35,170,186,0.35);box-shadow:var(--glow);}
+.kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--kpi-color,var(--primary));}
+.kpi-icon{font-size:22px;margin-bottom:8px;}
+.kpi-num{font-size:32px;font-weight:800;font-family:'Space Mono',monospace;color:var(--kpi-color,var(--primary));line-height:1;}
+.kpi-label{font-size:10px;letter-spacing:2px;color:var(--text3);font-family:'Space Mono',monospace;margin-top:6px;}
+.kpi-delta{font-size:11px;margin-top:6px;display:flex;align-items:center;gap:4px;}
+.kpi-delta.up{color:var(--danger);}
+.kpi-delta.down{color:var(--green);}
+.kpi-delta.neutral{color:var(--text3);}
+
+/* ── CHART CARD ── */
+.chart-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:18px;}
+.chart-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+.chart-title{font-size:11px;letter-spacing:2px;color:var(--text3);font-family:'Space Mono',monospace;}
+.chart-legend{display:flex;gap:12px;flex-wrap:wrap;}
+.legend-item{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--text2);}
+.legend-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+canvas{max-width:100%;}
+
+/* ── TABLE ── */
+.tbl-wrap{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;}
+.tbl-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border);}
+.tbl-title{font-size:11px;letter-spacing:2px;color:var(--text3);font-family:'Space Mono',monospace;}
+table{width:100%;border-collapse:collapse;}
+thead th{font-size:9px;letter-spacing:2px;color:var(--text3);font-family:'Space Mono',monospace;text-align:left;padding:10px 18px;border-bottom:1px solid var(--border2);background:var(--bg3);}
+tbody tr{transition:background 0.15s;}
+tbody tr:hover{background:rgba(35,170,186,0.05);}
+tbody td{padding:11px 18px;font-size:13px;border-bottom:1px solid var(--border2);}
+tbody tr:last-child td{border-bottom:none;}
+
+/* ── STATUS BADGE ── */
+.badge{display:inline-flex;align-items:center;gap:4px;font-size:9px;font-family:'Space Mono',monospace;letter-spacing:1px;padding:3px 8px;border-radius:99px;font-weight:700;}
+.badge.danger{background:rgba(248,68,57,0.15);color:var(--danger);border:1px solid rgba(248,68,57,0.3);}
+.badge.warn{background:rgba(234,161,44,0.15);color:var(--warn);border:1px solid rgba(234,161,44,0.3);}
+.badge.ok{background:rgba(61,190,108,0.15);color:var(--green);border:1px solid rgba(61,190,108,0.3);}
+.badge.info{background:rgba(35,170,186,0.15);color:var(--primary);border:1px solid rgba(35,170,186,0.3);}
+.badge::before{content:'●';font-size:7px;}
+
+/* ── PROGRESS BAR ── */
+.prog-wrap{height:6px;background:var(--bg3);border-radius:3px;overflow:hidden;}
+.prog-fill{height:100%;border-radius:3px;transition:width 1s ease;}
+
+/* ── AI PREDICTION CARD ── */
+.ai-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:18px;position:relative;overflow:hidden;}
+.ai-card::after{content:'';position:absolute;top:-40px;right:-40px;width:120px;height:120px;border-radius:50%;background:radial-gradient(circle,rgba(35,170,186,0.08) 0%,transparent 70%);}
+.ai-tag{font-size:9px;font-family:'Space Mono',monospace;letter-spacing:2px;color:var(--primary);margin-bottom:8px;}
+.ai-val{font-size:28px;font-weight:800;font-family:'Space Mono',monospace;}
+.ai-desc{font-size:12px;color:var(--text2);margin-top:6px;line-height:1.5;}
+.ai-confidence{margin-top:10px;}
+.ai-conf-label{font-size:9px;font-family:'Space Mono',monospace;color:var(--text3);display:flex;justify-content:space-between;margin-bottom:4px;}
+
+/* ── NODE STATUS ── */
+.node-status-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px;display:flex;flex-direction:column;gap:10px;}
+.node-row{display:flex;align-items:center;gap:10px;}
+.node-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+.node-dot.danger{background:var(--danger);box-shadow:0 0 8px var(--danger);}
+.node-dot.warn{background:var(--warn);box-shadow:0 0 8px var(--warn);}
+.node-dot.ok{background:var(--green);box-shadow:0 0 8px var(--green);}
+.node-name-sm{font-size:13px;font-weight:700;flex:1;}
+.node-val{font-size:12px;font-family:'Space Mono',monospace;color:var(--text2);}
+
+/* ── PLAN CARD ── */
+.plan-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:18px;}
+.plan-header{display:flex;align-items:flex-start;gap:12px;margin-bottom:12px;}
+.plan-num{width:32px;height:32px;border-radius:9px;background:rgba(35,170,186,0.15);border:1px solid rgba(35,170,186,0.3);display:flex;align-items:center;justify-content:center;font-family:'Space Mono',monospace;font-weight:700;font-size:13px;color:var(--primary);flex-shrink:0;}
+.plan-title{font-size:14px;font-weight:700;line-height:1.4;}
+.plan-meta{font-size:10px;color:var(--text3);font-family:'Space Mono',monospace;letter-spacing:1px;margin-top:2px;}
+.plan-body{font-size:12px;color:var(--text2);line-height:1.6;margin-bottom:12px;}
+.plan-kpis{display:flex;gap:10px;flex-wrap:wrap;}
+.plan-kpi{background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius-sm);padding:6px 10px;font-size:10px;}
+.plan-kpi strong{display:block;font-family:'Space Mono',monospace;color:var(--primary);}
+
+/* ── SURVEY RESULT ── */
+.survey-q-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:12px;}
+.survey-q-text{font-size:13px;font-weight:700;margin-bottom:12px;line-height:1.5;}
+.opt-bar{margin-bottom:8px;}
+.opt-label{display:flex;justify-content:space-between;font-size:11px;margin-bottom:4px;}
+.opt-label span:last-child{font-family:'Space Mono',monospace;color:var(--primary);}
+
+/* ── MAP ── */
+#adminMap{width:100%;height:360px;border-radius:var(--radius);overflow:hidden;border:1px solid var(--border);}
+.leaflet-tile{filter:invert(1) hue-rotate(185deg) brightness(0.78) saturate(1.35) contrast(0.95);}
+.leaflet-container{background:var(--bg);}
+.leaflet-popup-content-wrapper{background:var(--bg2);border:1px solid var(--border);border-radius:10px;box-shadow:var(--shadow);color:var(--text);}
+.leaflet-popup-tip{background:var(--bg2);}
+.leaflet-control-attribution{background:rgba(10,28,36,0.9)!important;color:var(--text3)!important;}
+.leaflet-bar a{background:var(--card)!important;color:var(--text)!important;border-color:var(--border)!important;}
+
+/* ── ALERT FEED ── */
+.alert-feed{display:flex;flex-direction:column;gap:8px;}
+.alert-item{display:flex;align-items:flex-start;gap:10px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius-sm);padding:10px 12px;}
+.alert-item.crit{border-left:3px solid var(--danger);}
+.alert-item.warn{border-left:3px solid var(--warn);}
+.alert-item.info{border-left:3px solid var(--primary);}
+.alert-ico{font-size:16px;flex-shrink:0;margin-top:1px;}
+.alert-body{flex:1;}
+.alert-msg{font-size:12px;font-weight:600;}
+.alert-time{font-size:10px;color:var(--text3);font-family:'Space Mono',monospace;margin-top:2px;}
+
+/* ── TABS ── */
+.tab-row{display:flex;gap:4px;margin-bottom:18px;background:var(--bg3);padding:4px;border-radius:var(--radius-sm);width:fit-content;}
+.tab{padding:7px 16px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;color:var(--text3);transition:all 0.18s;}
+.tab.active{background:var(--primary);color:white;}
+
+/* ── METRIC ROW ── */
+.metric-table-val{font-family:'Space Mono',monospace;font-weight:700;}
+.danger-val{color:var(--danger);}
+.warn-val{color:var(--warn);}
+.ok-val{color:var(--green);}
+
+/* ── MODEL WEIGHT BAR ── */
+.weight-row{display:flex;align-items:center;gap:10px;margin-bottom:8px;}
+.weight-label{font-size:11px;color:var(--text2);width:130px;flex-shrink:0;}
+.weight-bar-bg{flex:1;height:8px;background:var(--bg3);border-radius:4px;overflow:hidden;}
+.weight-bar-fill{height:100%;border-radius:4px;background:linear-gradient(90deg,var(--primary-d),var(--primary));}
+.weight-pct{font-size:10px;font-family:'Space Mono',monospace;color:var(--primary);width:32px;text-align:right;}
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar{width:4px;height:4px;}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+
+@media(max-width:900px){
+  #sidebar{width:56px;}
+  .nav-item span,.logo-txt,.logo-sub,.sidebar-bottom .user-name,.sidebar-bottom .user-role,.nav-section,.nav-badge{display:none;}
+  .nav-item{justify-content:center;padding:12px;}
+  .sidebar-logo{justify-content:center;padding:14px 0;}
+  .sidebar-bottom{padding:10px;}
+  .user-ava{margin:0 auto;}
+  .grid-4{grid-template-columns:1fr 1fr;}
+  .grid-6{grid-template-columns:repeat(3,1fr);}
+}
+
+/* ── AUTH OVERLAY ── */
+#auth-overlay{
+  position:fixed;inset:0;z-index:9999;background:var(--bg);
+  display:flex;align-items:center;justify-content:center;
+  background-image:radial-gradient(ellipse 80% 60% at 50% 0%,rgba(35,170,186,0.12) 0%,transparent 60%);
+}
+#auth-overlay.hidden{display:none;}
+.auth-card{
+  width:100%;max-width:420px;background:var(--bg2);
+  border:1px solid var(--border);border-radius:18px;
+  padding:36px 36px 32px;box-shadow:0 32px 80px rgba(0,0,0,0.65),var(--glow);
+  animation:authFadeIn 0.35s ease;
+}
+@keyframes authFadeIn{from{opacity:0;transform:translateY(20px);}to{opacity:1;transform:translateY(0);}}
+.auth-logo{display:flex;align-items:center;gap:12px;margin-bottom:28px;}
+.auth-logo-icon{width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,var(--primary),var(--orange));display:flex;align-items:center;justify-content:center;box-shadow:0 0 20px rgba(35,170,186,0.5);}
+.auth-logo-icon svg{width:22px;height:22px;}
+.auth-logo-txt{font-family:'Space Mono',monospace;font-size:18px;font-weight:700;letter-spacing:3px;}
+.auth-logo-txt span{color:var(--primary);}
+.auth-logo-sub{font-size:9px;letter-spacing:2px;color:var(--orange);font-family:'Space Mono',monospace;}
+.auth-tabs{display:flex;gap:4px;background:var(--bg3);padding:4px;border-radius:10px;margin-bottom:24px;}
+.auth-tab{flex:1;padding:8px;text-align:center;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;color:var(--text3);transition:all 0.18s;}
+.auth-tab.active{background:var(--primary);color:white;box-shadow:0 2px 10px rgba(35,170,186,0.4);}
+.auth-form{display:none;flex-direction:column;gap:14px;}
+.auth-form.active{display:flex;}
+.auth-field{display:flex;flex-direction:column;gap:6px;}
+.auth-label{font-size:10px;letter-spacing:2px;color:var(--text3);font-family:'Space Mono',monospace;}
+.auth-input{
+  background:var(--bg3);border:1px solid var(--border);border-radius:9px;
+  padding:11px 14px;color:var(--text);font-family:'Syne',sans-serif;font-size:14px;
+  outline:none;transition:border-color 0.18s;
+}
+.auth-input:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(35,170,186,0.15);}
+.auth-input::placeholder{color:var(--text3);}
+.auth-btn{
+  margin-top:4px;padding:13px;border-radius:10px;border:none;
+  background:linear-gradient(135deg,var(--primary),var(--primary-d));
+  color:white;font-family:'Syne',sans-serif;font-size:14px;font-weight:700;
+  cursor:pointer;transition:all 0.2s;letter-spacing:0.5px;
+  box-shadow:0 4px 16px rgba(35,170,186,0.4);
+}
+.auth-btn:hover{transform:translateY(-1px);box-shadow:0 6px 24px rgba(35,170,186,0.55);}
+.auth-btn:active{transform:translateY(0);}
+.auth-btn:disabled{opacity:0.55;cursor:default;transform:none;}
+.auth-error{
+  background:rgba(248,68,57,0.1);border:1px solid rgba(248,68,57,0.3);
+  border-radius:8px;padding:10px 12px;font-size:12px;color:var(--danger);
+  display:none;
+}
+.auth-error.show{display:block;}
+.auth-success{
+  background:rgba(61,190,108,0.1);border:1px solid rgba(61,190,108,0.3);
+  border-radius:8px;padding:10px 12px;font-size:12px;color:var(--green);
+  display:none;
+}
+.auth-success.show{display:block;}
+.auth-divider{text-align:center;font-size:10px;color:var(--text3);font-family:'Space Mono',monospace;letter-spacing:2px;margin:4px 0;}
+.logout-btn{
+  margin-top:10px;width:100%;padding:8px;border-radius:8px;border:1px solid var(--border);
+  background:transparent;color:var(--text3);font-family:'Syne',sans-serif;
+  font-size:11px;font-weight:600;cursor:pointer;transition:all 0.18s;letter-spacing:0.5px;
+  display:flex;align-items:center;justify-content:center;gap:6px;
+}
+.logout-btn:hover{background:rgba(248,68,57,0.1);color:var(--danger);border-color:rgba(248,68,57,0.3);}
+</style>
+</head>
+<body>
+<!-- ══ AUTH OVERLAY ══ -->
+<div id="auth-overlay">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <div class="auth-logo-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>
+          <path d="M4.9 4.9l2.1 2.1M16.9 16.9l2.1 2.1M4.9 19.1l2.1-2.1M16.9 7.1l2.1-2.1"/>
+        </svg>
+      </div>
+      <div>
+        <div class="auth-logo-txt">CIU<span>DATA</span></div>
+        <div class="auth-logo-sub">PANEL ADMINISTRATIVO</div>
+      </div>
+    </div>
+
+    <div class="auth-tabs">
+      <div class="auth-tab active" id="tab-login" onclick="switchAuthTab('login')">Iniciar sesión</div>
+      <div class="auth-tab" id="tab-register" onclick="switchAuthTab('register')">Registrarse</div>
+    </div>
+
+    <!-- LOGIN -->
+    <form class="auth-form active" id="form-login" onsubmit="handleLogin(event)">
+      <div class="auth-field">
+        <label class="auth-label">CORREO ELECTRÓNICO</label>
+        <input class="auth-input" id="login-email" type="email" placeholder="admin@upt.pe" required autocomplete="email">
+      </div>
+      <div class="auth-field">
+        <label class="auth-label">CONTRASEÑA</label>
+        <input class="auth-input" id="login-password" type="password" placeholder="••••••••" required autocomplete="current-password">
+      </div>
+      <div class="auth-error" id="login-error"></div>
+      <button class="auth-btn" id="login-btn" type="submit">Ingresar al panel</button>
+    </form>
+
+    <!-- REGISTER -->
+    <form class="auth-form" id="form-register" onsubmit="handleRegister(event)">
+      <div class="auth-field">
+        <label class="auth-label">CORREO ELECTRÓNICO</label>
+        <input class="auth-input" id="reg-email" type="email" placeholder="nuevo@upt.pe" required autocomplete="email">
+      </div>
+      <div class="auth-field">
+        <label class="auth-label">CONTRASEÑA</label>
+        <input class="auth-input" id="reg-password" type="password" placeholder="Mínimo 6 caracteres" required minlength="6" autocomplete="new-password">
+      </div>
+      <div class="auth-field">
+        <label class="auth-label">CONFIRMAR CONTRASEÑA</label>
+        <input class="auth-input" id="reg-confirm" type="password" placeholder="Repite la contraseña" required autocomplete="new-password">
+      </div>
+      <div class="auth-error" id="reg-error"></div>
+      <div class="auth-success" id="reg-success"></div>
+      <button class="auth-btn" id="reg-btn" type="submit">Crear cuenta</button>
+    </form>
+
+    <div class="auth-divider" style="margin-top:16px;">HACKATHON 2026 · UPT TACNA</div>
+  </div>
+</div>
+
+<div id="layout">
+
+<!-- ══ SIDEBAR ══ -->
+<aside id="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>
+        <path d="M4.9 4.9l2.1 2.1M16.9 16.9l2.1 2.1M4.9 19.1l2.1-2.1M16.9 7.1l2.1-2.1"/>
+      </svg>
+    </div>
+    <div>
+      <div class="logo-txt">CIU<span>DATA</span></div>
+      <div class="logo-sub">ADMIN · v1.0</div>
+    </div>
+  </div>
+
+  <div class="nav-section">PRINCIPAL</div>
+  <div class="nav-item active" data-sec="dashboard">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+    <span>Dashboard</span>
+    <span class="nav-badge">2</span>
+  </div>
+  <div class="nav-item" data-sec="calidad">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 18 0 9 9 0 0 0-18 0"/><path d="M12 8v4l3 3"/></svg>
+    <span>Calidad del Aire</span>
+  </div>
+  <div class="nav-item" data-sec="prediccion">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+    <span>Predicción IA</span>
+    <span class="nav-badge">BETA</span>
+  </div>
+  <div class="nav-item" data-sec="rutas">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 17l6-6 4 4 8-8"/></svg>
+    <span>Rutas &amp; Tránsito</span>
+  </div>
+
+  <div class="nav-section">GESTIÓN</div>
+  <div class="nav-item" data-sec="planes">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+    <span>Planes Ambientales</span>
+  </div>
+  <div class="nav-item" data-sec="encuesta">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+    <span>Encuesta Ciudadana</span>
+    <span class="nav-badge ok">90</span>
+  </div>
+  <div class="nav-item" data-sec="nodos">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="5" r="3"/><path d="M12 8v13"/><path d="M5 3l7 5 7-5"/></svg>
+    <span>Nodos Sensores</span>
+  </div>
+
+  <div class="sidebar-bottom">
+    <div class="user-row">
+      <div class="user-ava" id="sidebarAva">👤</div>
+      <div>
+        <div class="user-name" id="sidebarUserName">—</div>
+        <div class="user-role">ADMINISTRADOR</div>
+      </div>
+    </div>
+    <button class="logout-btn" onclick="signOut()">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      <span>Cerrar sesión</span>
+    </button>
+  </div>
+</aside>
+
+<!-- ══ MAIN ══ -->
+<div id="main">
+  <div id="topbar">
+    <div class="topbar-title" id="topTitle">Dashboard <span>/ Vista general</span></div>
+    <div class="live-pill"><div class="live-dot"></div>EN VIVO</div>
+    <div class="topbar-btn" title="Exportar CSV" onclick="alert('Exportación CSV próximamente')">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+    </div>
+    <div class="topbar-btn" title="Notificaciones" onclick="alert('2 alertas activas')">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+    </div>
+    <div style="font-size:10px;font-family:'Space Mono',monospace;color:var(--text3);" id="clockDisplay"></div>
+  </div>
+
+  <div id="content">
+
+    <!-- ══ DASHBOARD ══ -->
+    <section id="sec-dashboard" class="section active">
+      <div class="sec-head">
+        <div><div class="sec-title">Vista General</div><div class="sec-sub">TACNA, PERÚ · TIEMPO REAL</div></div>
+        <div class="sec-actions">
+          <select class="btn" id="scenarioSel" onchange="applyScenario()">
+            <option value="0">🔴 Hora Punta 07:00</option>
+            <option value="1">🟡 Tarde Normal 14:30</option>
+            <option value="2">🔴 Punta Noche 22:00</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- KPIs -->
+      <div class="grid-6" id="kpiGrid">
+        <div class="kpi" style="--kpi-color:var(--green)">
+          <div class="kpi-icon">📡</div>
+          <div class="kpi-num" id="kpi-nodos">3</div>
+          <div class="kpi-label">NODOS ACTIVOS</div>
+          <div class="kpi-delta neutral">↔ 100% uptime</div>
+        </div>
+        <div class="kpi" style="--kpi-color:var(--danger)">
+          <div class="kpi-icon">💨</div>
+          <div class="kpi-num" id="kpi-pm25">156</div>
+          <div class="kpi-label">PM2.5 PROM µg/m³</div>
+          <div class="kpi-delta up" id="kpi-pm25-delta">↑ +12% vs ayer</div>
+        </div>
+        <div class="kpi" style="--kpi-color:var(--warn)">
+          <div class="kpi-icon">⚠️</div>
+          <div class="kpi-num" id="kpi-zonas">2</div>
+          <div class="kpi-label">ZONAS CRÍTICAS</div>
+          <div class="kpi-delta up" id="kpi-zonas-delta">↑ ECA superado</div>
+        </div>
+        <div class="kpi" style="--kpi-color:var(--danger)">
+          <div class="kpi-icon">🚨</div>
+          <div class="kpi-num" id="kpi-alertas">7</div>
+          <div class="kpi-label">ALERTAS HOY</div>
+          <div class="kpi-delta up">↑ vs 3 ayer</div>
+        </div>
+        <div class="kpi" style="--kpi-color:var(--cyan)">
+          <div class="kpi-icon">👥</div>
+          <div class="kpi-num">90</div>
+          <div class="kpi-label">ENCUESTADOS</div>
+          <div class="kpi-delta down">↓ 76.6% afectados</div>
+        </div>
+        <div class="kpi" style="--kpi-color:var(--primary)">
+          <div class="kpi-icon">📱</div>
+          <div class="kpi-num">96%</div>
+          <div class="kpi-label">ADOPCIÓN PROY.</div>
+          <div class="kpi-delta neutral">↔ Tacna</div>
+        </div>
+      </div>
+
+      <div class="grid-2 row-gap">
+        <!-- PM2.5 Chart 24h -->
+        <div class="chart-card col-span-2" style="display:none" id="chartCardFull"><!-- placeholder --></div>
+        <div class="chart-card" style="grid-column:span 2">
+          <div class="chart-head">
+            <div class="chart-title">PM2.5 — ÚLTIMAS 24 HORAS POR NODO (µg/m³)</div>
+            <div class="chart-legend">
+              <div class="legend-item"><div class="legend-dot" style="background:var(--danger)"></div>Bolognesi</div>
+              <div class="legend-item"><div class="legend-dot" style="background:var(--warn)"></div>Mercado Central</div>
+              <div class="legend-item"><div class="legend-dot" style="background:var(--green)"></div>Centro Histórico</div>
+              <div class="legend-item"><div class="legend-dot" style="background:rgba(255,255,255,0.3);border:1px dashed var(--text3)"></div>Límite ECA 25</div>
+            </div>
+          </div>
+          <canvas id="chartPM25_24h" height="90"></canvas>
+        </div>
+      </div>
+
+      <div class="grid-2 row-gap">
+        <!-- Alertas recientes -->
+        <div class="chart-card">
+          <div class="chart-head"><div class="chart-title">ALERTAS RECIENTES</div></div>
+          <div class="alert-feed">
+            <div class="alert-item crit"><div class="alert-ico">🚨</div><div class="alert-body"><div class="alert-msg">PM2.5 187 µg/m³ — Av. Bolognesi</div><div class="alert-time">hace 3 min · 7.48× límite ECA</div></div></div>
+            <div class="alert-item warn"><div class="alert-ico">⚠️</div><div class="alert-body"><div class="alert-msg">CO₂ 650 ppm — Av. Bolognesi</div><div class="alert-time">hace 5 min · Nivel elevado</div></div></div>
+            <div class="alert-item crit"><div class="alert-ico">🚨</div><div class="alert-body"><div class="alert-msg">PM2.5 134 µg/m³ — Mercado Central</div><div class="alert-time">hace 8 min · 5.36× límite ECA</div></div></div>
+            <div class="alert-item info"><div class="alert-ico">📡</div><div class="alert-body"><div class="alert-msg">Nodo #003 — lectura estable</div><div class="alert-time">hace 12 min · PM2.5 48 µg/m³</div></div></div>
+            <div class="alert-item warn"><div class="alert-ico">⚠️</div><div class="alert-body"><div class="alert-msg">UV índice 9 — Av. Bolognesi</div><div class="alert-time">hace 20 min · Muy alto</div></div></div>
+          </div>
+        </div>
+
+        <!-- Node live status -->
+        <div class="chart-card">
+          <div class="chart-head"><div class="chart-title">ESTADO EN TIEMPO REAL</div></div>
+          <div class="node-status-card" style="background:transparent;border:none;padding:0;gap:14px;">
+            <div>
+              <div class="node-row" style="margin-bottom:6px">
+                <div class="node-dot danger"></div>
+                <div class="node-name-sm">Nodo #001 · Av. Bolognesi</div>
+                <span class="badge danger">CRÍTICO</span>
+              </div>
+              <div style="display:flex;gap:16px;padding-left:20px;">
+                <span style="font-size:11px;font-family:'Space Mono',monospace;">PM2.5 <strong class="danger-val" id="live-b-pm">187</strong></span>
+                <span style="font-size:11px;font-family:'Space Mono',monospace;">CO₂ <strong class="warn-val" id="live-b-co2">650</strong></span>
+                <span style="font-size:11px;font-family:'Space Mono',monospace;">UV <strong id="live-b-uv">9</strong></span>
+              </div>
+            </div>
+            <div>
+              <div class="node-row" style="margin-bottom:6px">
+                <div class="node-dot warn"></div>
+                <div class="node-name-sm">Nodo #002 · Mercado Central</div>
+                <span class="badge warn">MODERADO</span>
+              </div>
+              <div style="display:flex;gap:16px;padding-left:20px;">
+                <span style="font-size:11px;font-family:'Space Mono',monospace;">PM2.5 <strong class="warn-val" id="live-m-pm">134</strong></span>
+                <span style="font-size:11px;font-family:'Space Mono',monospace;">CO₂ <strong class="warn-val" id="live-m-co2">420</strong></span>
+                <span style="font-size:11px;font-family:'Space Mono',monospace;">UV <strong id="live-m-uv">7</strong></span>
+              </div>
+            </div>
+            <div>
+              <div class="node-row" style="margin-bottom:6px">
+                <div class="node-dot ok"></div>
+                <div class="node-name-sm">Nodo #003 · Centro Histórico</div>
+                <span class="badge ok">BUENO</span>
+              </div>
+              <div style="display:flex;gap:16px;padding-left:20px;">
+                <span style="font-size:11px;font-family:'Space Mono',monospace;">PM2.5 <strong class="ok-val" id="live-c-pm">48</strong></span>
+                <span style="font-size:11px;font-family:'Space Mono',monospace;">CO₂ <strong class="ok-val" id="live-c-co2">388</strong></span>
+                <span style="font-size:11px;font-family:'Space Mono',monospace;">UV <strong id="live-c-uv">6</strong></span>
+              </div>
+            </div>
+            <div style="margin-top:4px;">
+              <div class="chart-title" style="margin-bottom:8px">CUMPLIMIENTO ECA-AIRE HOY</div>
+              <div style="margin-bottom:6px">
+                <div style="display:flex;justify-content:space-between;font-size:10px;margin-bottom:3px;"><span>Bolognesi</span><span style="font-family:'Space Mono',monospace;color:var(--danger)">748%</span></div>
+                <div class="prog-wrap"><div class="prog-fill" style="width:100%;background:var(--danger)"></div></div>
+              </div>
+              <div style="margin-bottom:6px">
+                <div style="display:flex;justify-content:space-between;font-size:10px;margin-bottom:3px;"><span>Mercado Central</span><span style="font-family:'Space Mono',monospace;color:var(--warn)">536%</span></div>
+                <div class="prog-wrap"><div class="prog-fill" style="width:100%;background:var(--warn)"></div></div>
+              </div>
+              <div>
+                <div style="display:flex;justify-content:space-between;font-size:10px;margin-bottom:3px;"><span>Centro Histórico</span><span style="font-family:'Space Mono',monospace;color:var(--warn)">192%</span></div>
+                <div class="prog-wrap"><div class="prog-fill" style="width:76%;background:var(--warn)"></div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Incidents table -->
+      <div class="tbl-wrap row-gap">
+        <div class="tbl-head"><div class="tbl-title">INCIDENTES REGISTRADOS — ÚLTIMAS 48 HORAS</div><button class="btn">Ver todos</button></div>
+        <table>
+          <thead><tr><th>HORA</th><th>NODO</th><th>MÉTRICA</th><th>VALOR</th><th>LÍMITE ECA</th><th>EXCESO</th><th>ESTADO</th></tr></thead>
+          <tbody id="incidentsTbl"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ══ CALIDAD DEL AIRE ══ -->
+    <section id="sec-calidad" class="section">
+      <div class="sec-head">
+        <div><div class="sec-title">Calidad del Aire</div><div class="sec-sub">ANÁLISIS HISTÓRICO · ECA-AIRE DS 003-2017-MINAM</div></div>
+        <div class="sec-actions">
+          <select class="btn"><option>Últimas 24h</option><option>7 días</option><option>30 días</option></select>
+          <button class="btn primary">Exportar</button>
+        </div>
+      </div>
+
+      <div class="grid-3">
+        <div class="kpi" style="--kpi-color:var(--danger)"><div class="kpi-icon">💨</div><div class="kpi-num">187</div><div class="kpi-label">PM2.5 MÁX µg/m³</div><div class="kpi-delta up">7.48× límite ECA</div></div>
+        <div class="kpi" style="--kpi-color:var(--green)"><div class="kpi-icon">✅</div><div class="kpi-num">33%</div><div class="kpi-label">LECTURAS EN NORMA</div><div class="kpi-delta down">↓ Solo Nodo #003</div></div>
+        <div class="kpi" style="--kpi-color:var(--warn)"><div class="kpi-icon">🏭</div><div class="kpi-num">956</div><div class="kpi-label">VEHÍCULOS/HORA PICO</div><div class="kpi-delta up">↑ Av. Bolognesi</div></div>
+      </div>
+
+      <div class="grid-2 row-gap">
+        <div class="chart-card">
+          <div class="chart-head"><div class="chart-title">TENDENCIA PM2.5 POR HORA — 7 DÍAS</div></div>
+          <canvas id="chartPM25_trend" height="130"></canvas>
+        </div>
+        <div class="chart-card">
+          <div class="chart-head"><div class="chart-title">DISTRIBUCIÓN DE CONTAMINANTES</div></div>
+          <canvas id="chartPollutants" height="130"></canvas>
+        </div>
+      </div>
+
+      <div class="tbl-wrap row-gap">
+        <div class="tbl-head"><div class="tbl-title">LECTURAS POR CONTAMINANTE — TODOS LOS NODOS</div></div>
+        <table>
+          <thead><tr><th>NODO</th><th>PM2.5 µg/m³</th><th>CO₂ ppm</th><th>UV ÍNDICE</th><th>OZONO µg/m³</th><th>TEMP °C</th><th>ESTADO GENERAL</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Av. Bolognesi · #001</strong><br><small style="color:var(--text3);font-size:10px;">-18.0133, -70.2531</small></td>
+                <td><span class="metric-table-val danger-val">187</span></td><td><span class="metric-table-val warn-val">650</span></td>
+                <td><span class="metric-table-val">9</span></td><td><span class="metric-table-val warn-val">94</span></td>
+                <td><span class="metric-table-val">18°C</span></td><td><span class="badge danger">CRÍTICO</span></td></tr>
+            <tr><td><strong>Mercado Central · #002</strong><br><small style="color:var(--text3);font-size:10px;">-18.0145, -70.2480</small></td>
+                <td><span class="metric-table-val warn-val">134</span></td><td><span class="metric-table-val warn-val">420</span></td>
+                <td><span class="metric-table-val">7</span></td><td><span class="metric-table-val">68</span></td>
+                <td><span class="metric-table-val">21°C</span></td><td><span class="badge warn">MODERADO</span></td></tr>
+            <tr><td><strong>Centro Histórico · #003</strong><br><small style="color:var(--text3);font-size:10px;">-18.0120, -70.2495</small></td>
+                <td><span class="metric-table-val ok-val">48</span></td><td><span class="metric-table-val ok-val">388</span></td>
+                <td><span class="metric-table-val">6</span></td><td><span class="metric-table-val ok-val">52</span></td>
+                <td><span class="metric-table-val">19°C</span></td><td><span class="badge warn">ACEPTABLE</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="chart-card row-gap">
+        <div class="chart-head"><div class="chart-title">COMPARATIVA PM2.5 VS LÍMITE ECA-AIRE (25 µg/m³)</div></div>
+        <canvas id="chartECA" height="75"></canvas>
+      </div>
+    </section>
+
+    <!-- ══ PREDICCIÓN IA ══ -->
+    <section id="sec-prediccion" class="section">
+      <div class="sec-head">
+        <div><div class="sec-title">Predicción con IA</div><div class="sec-sub">MODELO DE RIESGO · ACCIDENTES · INCIDENTES AMBIENTALES</div></div>
+        <div class="sec-actions"><span class="badge info">● MODELO ACTIVO</span></div>
+      </div>
+
+      <!-- Model weights -->
+      <div class="grid-2">
+        <div class="chart-card">
+          <div class="chart-head"><div class="chart-title">PESOS DEL MODELO DE PUNTUACIÓN</div></div>
+          <div style="margin-top:8px;">
+            <div class="weight-row"><span class="weight-label">Contaminación PM2.5</span><div class="weight-bar-bg"><div class="weight-bar-fill" style="width:35%;background:linear-gradient(90deg,var(--primary-d),var(--danger))"></div></div><span class="weight-pct">35%</span></div>
+            <div class="weight-row"><span class="weight-label">Accidentes históricos</span><div class="weight-bar-bg"><div class="weight-bar-fill" style="width:30%;background:linear-gradient(90deg,var(--primary-d),var(--warn))"></div></div><span class="weight-pct">30%</span></div>
+            <div class="weight-row"><span class="weight-label">Flujo vehicular</span><div class="weight-bar-bg"><div class="weight-bar-fill" style="width:20%"></div></div><span class="weight-pct">20%</span></div>
+            <div class="weight-row"><span class="weight-label">Incidentes reportados</span><div class="weight-bar-bg"><div class="weight-bar-fill" style="width:15%;background:linear-gradient(90deg,var(--primary-d),var(--purple))"></div></div><span class="weight-pct">15%</span></div>
+          </div>
+          <div style="margin-top:16px">
+            <div class="chart-title" style="margin-bottom:8px">PRECISIÓN DEL MODELO</div>
+            <canvas id="chartModelAccuracy" height="100"></canvas>
+          </div>
+        </div>
+
+        <div>
+          <div class="grid-2" style="gap:12px;margin-bottom:12px;">
+            <div class="ai-card" style="--kpi-color:var(--danger)">
+              <div class="ai-tag">● PREDICCIÓN +2H</div>
+              <div class="ai-val" style="color:var(--danger)">ALTO</div>
+              <div class="ai-desc">Riesgo de contaminación crítica en Av. Bolognesi. PM2.5 estimado: 195–210 µg/m³</div>
+              <div class="ai-confidence">
+                <div class="ai-conf-label"><span>Confianza del modelo</span><span>87%</span></div>
+                <div class="prog-wrap"><div class="prog-fill" style="width:87%;background:var(--danger)"></div></div>
+              </div>
+            </div>
+            <div class="ai-card">
+              <div class="ai-tag">● PREDICCIÓN +6H</div>
+              <div class="ai-val" style="color:var(--warn)">MODERADO</div>
+              <div class="ai-desc">Dispersión probable hacia Mercado Central. PM2.5 estimado: 90–120 µg/m³</div>
+              <div class="ai-confidence">
+                <div class="ai-conf-label"><span>Confianza del modelo</span><span>74%</span></div>
+                <div class="prog-wrap"><div class="prog-fill" style="width:74%;background:var(--warn)"></div></div>
+              </div>
+            </div>
+            <div class="ai-card">
+              <div class="ai-tag">● RIESGO ACCIDENTES</div>
+              <div class="ai-val" style="color:var(--orange)">8.3/10</div>
+              <div class="ai-desc">Av. Bolognesi: 8 accidentes históricos + 23 incidentes. Zona de alto riesgo.</div>
+              <div class="ai-confidence">
+                <div class="ai-conf-label"><span>Confianza del modelo</span><span>91%</span></div>
+                <div class="prog-wrap"><div class="prog-fill" style="width:91%;background:var(--orange)"></div></div>
+              </div>
+            </div>
+            <div class="ai-card">
+              <div class="ai-tag">● PREDICCIÓN PICO</div>
+              <div class="ai-val" style="color:var(--primary)">07:30</div>
+              <div class="ai-desc">Próximo pico de contaminación estimado. Coincide con hora punta vehicular.</div>
+              <div class="ai-confidence">
+                <div class="ai-conf-label"><span>Confianza del modelo</span><span>82%</span></div>
+                <div class="prog-wrap"><div class="prog-fill" style="width:82%"></div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Risk map -->
+      <div class="chart-card row-gap">
+        <div class="chart-head">
+          <div class="chart-title">MAPA DE RIESGO AMBIENTAL — TACNA</div>
+          <div style="display:flex;gap:10px;align-items:center;">
+            <span class="badge danger">Alta contaminación</span>
+            <span class="badge warn">Moderada</span>
+            <span class="badge ok">Dentro del ECA</span>
+          </div>
+        </div>
+        <div id="adminMap"></div>
+      </div>
+
+      <!-- Prediction table -->
+      <div class="tbl-wrap row-gap">
+        <div class="tbl-head"><div class="tbl-title">TABLA DE RIESGO POR ZONA — MODELO IA</div></div>
+        <table>
+          <thead><tr><th>ZONA / CALLE</th><th>ACCIDENTES HIST.</th><th>INCIDENTES</th><th>PM2.5 PROM</th><th>FLUJO PICO</th><th>SCORE RIESGO</th><th>NIVEL</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Av. Bolognesi</strong></td><td>8</td><td>23</td><td class="danger-val metric-table-val">155</td><td>92%</td><td><strong class="danger-val metric-table-val">84/100</strong></td><td><span class="badge danger">CRÍTICO</span></td></tr>
+            <tr><td><strong>Av. Leguía</strong></td><td>5</td><td>12</td><td class="warn-val metric-table-val">88</td><td>72%</td><td><strong class="warn-val metric-table-val">61/100</strong></td><td><span class="badge warn">ALTO</span></td></tr>
+            <tr><td><strong>Av. Basadre</strong></td><td>4</td><td>10</td><td class="warn-val metric-table-val">72</td><td>65%</td><td><strong class="warn-val metric-table-val">52/100</strong></td><td><span class="badge warn">MODERADO</span></td></tr>
+            <tr><td><strong>Av. Pinto</strong></td><td>3</td><td>8</td><td class="ok-val metric-table-val">65</td><td>60%</td><td><strong class="ok-val metric-table-val">38/100</strong></td><td><span class="badge ok">BAJO</span></td></tr>
+            <tr><td><strong>Av. San Martín</strong></td><td>2</td><td>6</td><td class="ok-val metric-table-val">55</td><td>45%</td><td><strong class="ok-val metric-table-val">28/100</strong></td><td><span class="badge ok">BAJO</span></td></tr>
+            <tr><td><strong>C. Zela</strong></td><td>1</td><td>4</td><td class="ok-val metric-table-val">42</td><td>35%</td><td><strong class="ok-val metric-table-val">18/100</strong></td><td><span class="badge ok">MÍNIMO</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ══ RUTAS & TRÁNSITO ══ -->
+    <section id="sec-rutas" class="section">
+      <div class="sec-head">
+        <div><div class="sec-title">Rutas &amp; Tránsito</div><div class="sec-sub">ANÁLISIS DE MOVILIDAD URBANA · MODELO IA CIUDATA</div></div>
+      </div>
+
+      <div class="grid-3">
+        <div class="kpi" style="--kpi-color:var(--green)"><div class="kpi-icon">✅</div><div class="kpi-num">18</div><div class="kpi-label">SCORE RUTA ÓPTIMA</div><div class="kpi-delta down">↓ Zela → S.Martín → Pinto</div></div>
+        <div class="kpi" style="--kpi-color:var(--warn)"><div class="kpi-icon">⏱</div><div class="kpi-num">+4 min</div><div class="kpi-label">COSTO RUTA ÓPTIMA</div><div class="kpi-delta neutral">vs ruta directa</div></div>
+        <div class="kpi" style="--kpi-color:var(--danger)"><div class="kpi-icon">🚫</div><div class="kpi-num">84%</div><div class="kpi-label">RIESGO BOLOGNESI</div><div class="kpi-delta up">↑ Ruta a evitar</div></div>
+      </div>
+
+      <div class="grid-2 row-gap">
+        <div class="chart-card">
+          <div class="chart-head"><div class="chart-title">FLUJO VEHICULAR POR HORA</div></div>
+          <canvas id="chartTrafficFlow" height="130"></canvas>
+        </div>
+        <div class="chart-card">
+          <div class="chart-head"><div class="chart-title">SCORE DE RIESGO POR RUTA</div></div>
+          <canvas id="chartRouteRisk" height="130"></canvas>
+        </div>
+      </div>
+
+      <div class="tbl-wrap row-gap">
+        <div class="tbl-head"><div class="tbl-title">ANÁLISIS DE RUTAS — MODELO MULTICRITERIO IA</div></div>
+        <table>
+          <thead><tr><th>RUTA</th><th>VÍA</th><th>SCORE TOTAL</th><th>CONTAMINACIÓN</th><th>ACCIDENTES</th><th>FLUJO</th><th>INCIDENTES</th><th>RECOMENDACIÓN</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Ruta Óptima IA</strong></td><td style="font-size:11px;color:var(--text2)">C. Zela → Av. S.Martín → Av. Pinto</td>
+                <td><strong class="ok-val metric-table-val">18/100</strong></td>
+                <td><div class="prog-wrap" style="width:60px"><div class="prog-fill" style="width:14%;background:var(--green)"></div></div></td>
+                <td><div class="prog-wrap" style="width:60px"><div class="prog-fill" style="width:20%;background:var(--green)"></div></div></td>
+                <td><div class="prog-wrap" style="width:60px"><div class="prog-fill" style="width:25%;background:var(--green)"></div></div></td>
+                <td><div class="prog-wrap" style="width:60px"><div class="prog-fill" style="width:15%;background:var(--green)"></div></div></td>
+                <td><span class="badge ok">✓ USAR</span></td></tr>
+            <tr><td><strong>Ruta Alternativa</strong></td><td style="font-size:11px;color:var(--text2)">Av. Leguía → Av. Basadre</td>
+                <td><strong class="warn-val metric-table-val">57/100</strong></td>
+                <td><div class="prog-wrap" style="width:60px"><div class="prog-fill" style="width:55%;background:var(--warn)"></div></div></td>
+                <td><div class="prog-wrap" style="width:60px"><div class="prog-fill" style="width:60%;background:var(--warn)"></div></div></td>
+                <td><div class="prog-wrap" style="width:60px"><div class="prog-fill" style="width:65%;background:var(--warn)"></div></div></td>
+                <td><div class="prog-wrap" style="width:60px"><div class="prog-fill" style="width:50%;background:var(--warn)"></div></div></td>
+                <td><span class="badge warn">◎ ACEPTABLE</span></td></tr>
+            <tr><td><strong>Ruta Directa</strong></td><td style="font-size:11px;color:var(--text2)">Av. Bolognesi (zona crítica)</td>
+                <td><strong class="danger-val metric-table-val">84/100</strong></td>
+                <td><div class="prog-wrap" style="width:60px"><div class="prog-fill" style="width:100%;background:var(--danger)"></div></div></td>
+                <td><div class="prog-wrap" style="width:60px"><div class="prog-fill" style="width:90%;background:var(--danger)"></div></div></td>
+                <td><div class="prog-wrap" style="width:60px"><div class="prog-fill" style="width:92%;background:var(--danger)"></div></div></td>
+                <td><div class="prog-wrap" style="width:60px"><div class="prog-fill" style="width:88%;background:var(--danger)"></div></div></td>
+                <td><span class="badge danger">✗ EVITAR</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ══ PLANES AMBIENTALES ══ -->
+    <section id="sec-planes" class="section">
+      <div class="sec-head">
+        <div><div class="sec-title">Planes Ambientales</div><div class="sec-sub">ESTRATEGIAS DE INTERVENCIÓN · TACNA 2026</div></div>
+        <div class="sec-actions"><button class="btn primary">Nuevo Plan</button></div>
+      </div>
+
+      <div class="grid-2">
+        <div class="chart-card">
+          <div class="chart-head"><div class="chart-title">OBJETIVO DE REDUCCIÓN CO₂ — 2026</div></div>
+          <canvas id="chartCO2Reduction" height="120"></canvas>
+        </div>
+        <div class="chart-card">
+          <div class="chart-head"><div class="chart-title">IMPACTO ESTIMADO POR PLAN</div></div>
+          <canvas id="chartPlanImpact" height="120"></canvas>
+        </div>
+      </div>
+
+      <div class="row-gap" style="display:flex;flex-direction:column;gap:12px;">
+        <div class="plan-card">
+          <div class="plan-header">
+            <div class="plan-num">01</div>
+            <div style="flex:1">
+              <div class="plan-title">Restricción Vehicular Av. Bolognesi — Hora Punta</div>
+              <div class="plan-meta">PRIORIDAD ALTA · EN REVISIÓN · Inicio: Jun 2026</div>
+            </div>
+            <span class="badge warn">EN REVISIÓN</span>
+          </div>
+          <div class="plan-body">Implementar restricción de vehículos de carga pesada en Av. Bolognesi entre 06:30–09:30 y 17:00–20:00. Datos CIUDATA muestran PM2.5 promedio de 155 µg/m³ durante hora punta, 6.2× el límite ECA-Aire. Redirigir tráfico pesado por Av. Ejército y Circunvalación.</div>
+          <div class="plan-kpis">
+            <div class="plan-kpi"><strong>−45%</strong>PM2.5 estimado</div>
+            <div class="plan-kpi"><strong>3,200</strong>Ciudadanos beneficiados</div>
+            <div class="plan-kpi"><strong>60 días</strong>Plazo implementación</div>
+            <div class="plan-kpi"><strong>S/. 8,500</strong>Costo estimado/mes</div>
+          </div>
+        </div>
+
+        <div class="plan-card">
+          <div class="plan-header">
+            <div class="plan-num">02</div>
+            <div style="flex:1">
+              <div class="plan-title">Red de Ciclovías — Corredor Centro Histórico</div>
+              <div class="plan-meta">PRIORIDAD MEDIA · APROBADO · Inicio: Ago 2026</div>
+            </div>
+            <span class="badge ok">APROBADO</span>
+          </div>
+          <div class="plan-body">Construir 4.2 km de ciclovía segregada conectando Centro Histórico con Mercado Central y Plaza de Armas. El Nodo #003 confirma que la zona tiene PM2.5 aceptable (48 µg/m³), haciéndola viable para movilidad activa. Se proyecta reducción del 18% de vehículos livianos en el corredor.</div>
+          <div class="plan-kpis">
+            <div class="plan-kpi"><strong>−18%</strong>Vehículos livianos</div>
+            <div class="plan-kpi"><strong>4.2 km</strong>Ciclovía nueva</div>
+            <div class="plan-kpi"><strong>180 días</strong>Construcción</div>
+            <div class="plan-kpi"><strong>S/. 125,000</strong>Inversión</div>
+          </div>
+        </div>
+
+        <div class="plan-card">
+          <div class="plan-header">
+            <div class="plan-num">03</div>
+            <div style="flex:1">
+              <div class="plan-title">Sistema de Alerta Temprana — Notificaciones Push Ciudadanas</div>
+              <div class="plan-meta">PRIORIDAD ALTA · EN DESARROLLO · CIUDATA FCM</div>
+            </div>
+            <span class="badge info">EN DESARROLLO</span>
+          </div>
+          <div class="plan-body">Activar Firebase Cloud Messaging en CIUDATA para enviar alertas automáticas cuando PM2.5 supere 50 µg/m³ en cualquier nodo. La encuesta indica que 95.6% de ciudadanos usaría el mapa y 76.6% ya evita zonas contaminadas sin datos formales — con datos reales, el impacto será mayor.</div>
+          <div class="plan-kpis">
+            <div class="plan-kpi"><strong>95.6%</strong>Adopción proyectada</div>
+            <div class="plan-kpi"><strong>Push FCM</strong>Tecnología</div>
+            <div class="plan-kpi"><strong>30 días</strong>Integración</div>
+            <div class="plan-kpi"><strong>S/. 0</strong>Costo infraestructura</div>
+          </div>
+        </div>
+
+        <div class="plan-card">
+          <div class="plan-header">
+            <div class="plan-num">04</div>
+            <div style="flex:1">
+              <div class="plan-title">Expansión Red de Sensores IoT — 10 Nodos Nuevos</div>
+              <div class="plan-meta">PRIORIDAD MEDIA · EN PLANEACIÓN · 2026–2027</div>
+            </div>
+            <span class="badge info">PLANEACIÓN</span>
+          </div>
+          <div class="plan-body">Ampliar de 3 a 13 nodos sensores cubriendo los distritos de Alto de la Alianza, Ciudad Nueva, Pocollay y Calana. Prioridad en zonas industriales y avenidas con mayor densidad vehicular identificadas por el modelo IA. Integración con API real reemplazando datos simulados actuales.</div>
+          <div class="plan-kpis">
+            <div class="plan-kpi"><strong>+10</strong>Nodos nuevos</div>
+            <div class="plan-kpi"><strong>5 distritos</strong>Cobertura</div>
+            <div class="plan-kpi"><strong>12 meses</strong>Implementación</div>
+            <div class="plan-kpi"><strong>S/. 45,000</strong>Inversión total</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══ ENCUESTA ══ -->
+    <section id="sec-encuesta" class="section">
+      <div class="sec-head">
+        <div><div class="sec-title">Encuesta Ciudadana</div><div class="sec-sub">90 RESPUESTAS · TACNA · MAYO 2026</div></div>
+        <div class="sec-actions"><button class="btn primary">Exportar resultados</button></div>
+      </div>
+
+      <div class="grid-4">
+        <div class="kpi" style="--kpi-color:var(--primary)"><div class="kpi-icon">📝</div><div class="kpi-num">90</div><div class="kpi-label">TOTAL ENCUESTADOS</div></div>
+        <div class="kpi" style="--kpi-color:var(--danger)"><div class="kpi-icon">😷</div><div class="kpi-num">76.6%</div><div class="kpi-label">EVITA ZONAS CONTAMINADAS</div></div>
+        <div class="kpi" style="--kpi-color:var(--green)"><div class="kpi-icon">📱</div><div class="kpi-num">95.6%</div><div class="kpi-label">USARÍA EL MAPA CIUDATA</div></div>
+        <div class="kpi" style="--kpi-color:var(--warn)"><div class="kpi-icon">📚</div><div class="kpi-num">70%</div><div class="kpi-label">DESCONOCE LÍMITES ECA</div></div>
+      </div>
+
+      <div class="grid-2 row-gap">
+        <div>
+          <div class="survey-q-card">
+            <div class="survey-q-text">1. ¿Ha notado problemas de contaminación del aire en Tacna?</div>
+            <div class="opt-bar"><div class="opt-label"><span>Sí, frecuentemente</span><span>68%</span></div><div class="prog-wrap"><div class="prog-fill" style="width:68%;background:var(--danger)"></div></div></div>
+            <div class="opt-bar"><div class="opt-label"><span>A veces</span><span>24%</span></div><div class="prog-wrap"><div class="prog-fill" style="width:24%;background:var(--warn)"></div></div></div>
+            <div class="opt-bar"><div class="opt-label"><span>No, raramente</span><span>8%</span></div><div class="prog-wrap"><div class="prog-fill" style="width:8%;background:var(--green)"></div></div></div>
+          </div>
+
+          <div class="survey-q-card">
+            <div class="survey-q-text">2. ¿Cambia su ruta si sabe que hay contaminación?</div>
+            <div class="opt-bar"><div class="opt-label"><span>Sí, siempre</span><span>38%</span></div><div class="prog-wrap"><div class="prog-fill" style="width:38%;background:var(--green)"></div></div></div>
+            <div class="opt-bar"><div class="opt-label"><span>A veces, si tengo info</span><span>38.6%</span></div><div class="prog-wrap"><div class="prog-fill" style="width:38.6%;background:var(--primary)"></div></div></div>
+            <div class="opt-bar"><div class="opt-label"><span>No tengo cómo saber</span><span>23.4%</span></div><div class="prog-wrap"><div class="prog-fill" style="width:23.4%;background:var(--warn)"></div></div></div>
+          </div>
+
+          <div class="survey-q-card">
+            <div class="survey-q-text">3. ¿Conoce los límites ECA-Aire del MINAM?</div>
+            <div class="opt-bar"><div class="opt-label"><span>Sí los conozco</span><span>30%</span></div><div class="prog-wrap"><div class="prog-fill" style="width:30%;background:var(--green)"></div></div></div>
+            <div class="opt-bar"><div class="opt-label"><span>He escuchado, no los recuerdo</span><span>35%</span></div><div class="prog-wrap"><div class="prog-fill" style="width:35%;background:var(--warn)"></div></div></div>
+            <div class="opt-bar"><div class="opt-label"><span>No los conozco</span><span>35%</span></div><div class="prog-wrap"><div class="prog-fill" style="width:35%;background:var(--danger)"></div></div></div>
+          </div>
+        </div>
+
+        <div>
+          <div class="survey-q-card">
+            <div class="survey-q-text">4. ¿Usaría una app que muestre calidad del aire en tiempo real?</div>
+            <div class="opt-bar"><div class="opt-label"><span>Sí, definitivamente</span><span>62%</span></div><div class="prog-wrap"><div class="prog-fill" style="width:62%;background:var(--primary)"></div></div></div>
+            <div class="opt-bar"><div class="opt-label"><span>Probablemente sí</span><span>33.6%</span></div><div class="prog-wrap"><div class="prog-fill" style="width:33.6%;background:var(--primary-d)"></div></div></div>
+            <div class="opt-bar"><div class="opt-label"><span>Tal vez</span><span>3.4%</span></div><div class="prog-wrap"><div class="prog-fill" style="width:3.4%;background:var(--text3)"></div></div></div>
+            <div class="opt-bar"><div class="opt-label"><span>No usaría</span><span>1%</span></div><div class="prog-wrap"><div class="prog-fill" style="width:1%;background:var(--danger)"></div></div></div>
+          </div>
+
+          <div class="survey-q-card">
+            <div class="survey-q-text">5. ¿Cuál es el principal problema ambiental en tu zona?</div>
+            <div class="opt-bar"><div class="opt-label"><span>Contaminación vehicular</span><span>48%</span></div><div class="prog-wrap"><div class="prog-fill" style="width:48%;background:var(--danger)"></div></div></div>
+            <div class="opt-bar"><div class="opt-label"><span>Polvo y partículas</span><span>29%</span></div><div class="prog-wrap"><div class="prog-fill" style="width:29%;background:var(--warn)"></div></div></div>
+            <div class="opt-bar"><div class="opt-label"><span>Ruido y tráfico</span><span>15%</span></div><div class="prog-wrap"><div class="prog-fill" style="width:15%;background:var(--purple)"></div></div></div>
+            <div class="opt-bar"><div class="opt-label"><span>Residuos sólidos</span><span>8%</span></div><div class="prog-wrap"><div class="prog-fill" style="width:8%;background:var(--text3)"></div></div></div>
+          </div>
+
+          <div class="chart-card" style="background:var(--bg3);border-color:var(--border2);">
+            <div class="chart-title" style="margin-bottom:12px">INSIGHTS CLAVE</div>
+            <div style="display:flex;flex-direction:column;gap:8px;">
+              <div style="display:flex;gap:8px;align-items:center;font-size:12px;"><span style="font-size:18px;">💡</span><span><strong>76.6%</strong> ya modifica comportamiento sin datos — con CIUDATA este % será mayor</span></div>
+              <div style="display:flex;gap:8px;align-items:center;font-size:12px;"><span style="font-size:18px;">⚠️</span><span><strong>70%</strong> desconoce ECA-Aire → oportunidad de educación ambiental</span></div>
+              <div style="display:flex;gap:8px;align-items:center;font-size:12px;"><span style="font-size:18px;">📱</span><span><strong>95.6%</strong> de adopción proyectada — el más alto del Hackathon 2026</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══ NODOS ══ -->
+    <section id="sec-nodos" class="section">
+      <div class="sec-head">
+        <div><div class="sec-title">Nodos Sensores</div><div class="sec-sub">GESTIÓN DE INFRAESTRUCTURA · 3 ACTIVOS</div></div>
+        <div class="sec-actions"><button class="btn primary">Agregar Nodo</button></div>
+      </div>
+
+      <div class="grid-3">
+        <div class="kpi" style="--kpi-color:var(--green)"><div class="kpi-icon">🟢</div><div class="kpi-num">3/3</div><div class="kpi-label">NODOS EN LÍNEA</div><div class="kpi-delta down">↓ 100% uptime</div></div>
+        <div class="kpi" style="--kpi-color:var(--primary)"><div class="kpi-icon">⏱</div><div class="kpi-num">30s</div><div class="kpi-label">INTERVALO LECTURA</div><div class="kpi-delta neutral">↔ Configurado</div></div>
+        <div class="kpi" style="--kpi-color:var(--warn)"><div class="kpi-icon">🔋</div><div class="kpi-num">78%</div><div class="kpi-label">BATERÍA PROM.</div><div class="kpi-delta up">↑ Nodo #001 bajo</div></div>
+      </div>
+
+      <div class="tbl-wrap row-gap">
+        <div class="tbl-head"><div class="tbl-title">INVENTARIO DE NODOS</div><button class="btn">Sincronizar</button></div>
+        <table>
+          <thead><tr><th>ID</th><th>UBICACIÓN</th><th>COORDENADAS</th><th>ESTADO</th><th>PM2.5</th><th>BATERÍA</th><th>UPTIME</th><th>ÚLTIMA LECTURA</th><th>FIRMWARE</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong style="font-family:'Space Mono',monospace;">#001</strong></td>
+              <td><strong>Av. Bolognesi Norte</strong><br><small style="color:var(--text3)">Zona industrial · Alto flujo</small></td>
+              <td style="font-family:'Space Mono',monospace;font-size:11px;color:var(--text2);">-18.0133<br>-70.2531</td>
+              <td><span class="badge danger">CRÍTICO</span></td>
+              <td><strong class="danger-val metric-table-val">187</strong></td>
+              <td>
+                <div style="display:flex;align-items:center;gap:6px;">
+                  <div class="prog-wrap" style="width:50px"><div class="prog-fill" style="width:55%;background:var(--warn)"></div></div>
+                  <span style="font-size:11px;font-family:'Space Mono',monospace;color:var(--warn)">55%</span>
+                </div>
+              </td>
+              <td><span style="color:var(--green);font-family:'Space Mono',monospace;font-size:11px;">99.7%</span></td>
+              <td style="font-size:11px;font-family:'Space Mono',monospace;color:var(--text2);">hace 30s</td>
+              <td style="font-size:11px;font-family:'Space Mono',monospace;color:var(--text3);">v2.1.4</td>
+            </tr>
+            <tr>
+              <td><strong style="font-family:'Space Mono',monospace;">#002</strong></td>
+              <td><strong>Mercado Central</strong><br><small style="color:var(--text3)">Zona comercial · Densidad media</small></td>
+              <td style="font-family:'Space Mono',monospace;font-size:11px;color:var(--text2);">-18.0145<br>-70.2480</td>
+              <td><span class="badge warn">MODERADO</span></td>
+              <td><strong class="warn-val metric-table-val">134</strong></td>
+              <td>
+                <div style="display:flex;align-items:center;gap:6px;">
+                  <div class="prog-wrap" style="width:50px"><div class="prog-fill" style="width:82%;background:var(--green)"></div></div>
+                  <span style="font-size:11px;font-family:'Space Mono',monospace;color:var(--green)">82%</span>
+                </div>
+              </td>
+              <td><span style="color:var(--green);font-family:'Space Mono',monospace;font-size:11px;">99.9%</span></td>
+              <td style="font-size:11px;font-family:'Space Mono',monospace;color:var(--text2);">hace 30s</td>
+              <td style="font-size:11px;font-family:'Space Mono',monospace;color:var(--text3);">v2.1.4</td>
+            </tr>
+            <tr>
+              <td><strong style="font-family:'Space Mono',monospace;">#003</strong></td>
+              <td><strong>Centro Histórico</strong><br><small style="color:var(--text3)">Zona peatonal · Bajo flujo</small></td>
+              <td style="font-family:'Space Mono',monospace;font-size:11px;color:var(--text2);">-18.0120<br>-70.2495</td>
+              <td><span class="badge ok">BUENO</span></td>
+              <td><strong class="ok-val metric-table-val">48</strong></td>
+              <td>
+                <div style="display:flex;align-items:center;gap:6px;">
+                  <div class="prog-wrap" style="width:50px"><div class="prog-fill" style="width:97%;background:var(--green)"></div></div>
+                  <span style="font-size:11px;font-family:'Space Mono',monospace;color:var(--green)">97%</span>
+                </div>
+              </td>
+              <td><span style="color:var(--green);font-family:'Space Mono',monospace;font-size:11px;">100%</span></td>
+              <td style="font-size:11px;font-family:'Space Mono',monospace;color:var(--text2);">hace 28s</td>
+              <td style="font-size:11px;font-family:'Space Mono',monospace;color:var(--text3);">v2.1.4</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="chart-card row-gap">
+        <div class="chart-head"><div class="chart-title">HISTORIAL DE LECTURAS PM2.5 — 3 NODOS (ÚLTIMAS 8H)</div></div>
+        <canvas id="chartNodesHistory" height="80"></canvas>
+      </div>
+    </section>
+
+  </div><!-- /content -->
+</div><!-- /main -->
+</div><!-- /layout -->
+
+<script>
+// ── SUPABASE CONFIG ─────────────────────────────
+// Reemplaza estos valores con los de tu proyecto en https://supabase.com/dashboard
+const SUPABASE_URL  = 'https://agswvyjifhrrwclfvwur.supabase.co';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFnc3d2eWppZmhycndjbGZ2d3VyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk0MTcyMzUsImV4cCI6MjA5NDk5MzIzNX0.4T3uLC7hiADUM91fvU8qHRIUYJaPKn7rROEHYwTv4mg';
+
+const { createClient } = supabase;
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
+
+// ── AUTH HELPERS ────────────────────────────────
+function switchAuthTab(tab) {
+  ['login','register'].forEach(t => {
+    document.getElementById('tab-'+t).classList.toggle('active', t===tab);
+    document.getElementById('form-'+t).classList.toggle('active', t===tab);
+  });
+}
+
+function setAuthLoading(formId, loading) {
+  const btn = document.getElementById(formId === 'login' ? 'login-btn' : 'reg-btn');
+  btn.disabled = loading;
+  btn.textContent = loading ? 'Cargando...' : (formId === 'login' ? 'Ingresar al panel' : 'Crear cuenta');
+}
+
+function showAuthError(id, msg) {
+  const el = document.getElementById(id);
+  el.textContent = msg;
+  el.classList.add('show');
+}
+function clearAuthMessages() {
+  ['login-error','reg-error','reg-success'].forEach(id => {
+    document.getElementById(id).classList.remove('show');
+  });
+}
+
+async function handleLogin(e) {
+  e.preventDefault();
+  clearAuthMessages();
+  const email    = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+  setAuthLoading('login', true);
+  const { error } = await sb.auth.signInWithPassword({ email, password });
+  setAuthLoading('login', false);
+  if (error) { showAuthError('login-error', error.message); return; }
+  // onAuthStateChange will handle the rest
+}
+
+async function handleRegister(e) {
+  e.preventDefault();
+  clearAuthMessages();
+  const email    = document.getElementById('reg-email').value.trim();
+  const password = document.getElementById('reg-password').value;
+  const confirm  = document.getElementById('reg-confirm').value;
+  if (password !== confirm) { showAuthError('reg-error', 'Las contraseñas no coinciden.'); return; }
+  setAuthLoading('register', true);
+  const { error } = await sb.auth.signUp({ email, password });
+  setAuthLoading('register', false);
+  if (error) { showAuthError('reg-error', error.message); return; }
+  const suc = document.getElementById('reg-success');
+  suc.textContent = 'Cuenta creada. Revisa tu correo para confirmar el registro.';
+  suc.classList.add('show');
+  document.getElementById('reg-btn').disabled = true;
+}
+
+async function signOut() {
+  await sb.auth.signOut();
+  document.getElementById('layout').style.display = 'none';
+  document.getElementById('auth-overlay').classList.remove('hidden');
+  document.getElementById('login-email').value = '';
+  document.getElementById('login-password').value = '';
+  clearAuthMessages();
+}
+
+function onSignedIn(user) {
+  // Show initials avatar
+  const initials = user.email ? user.email[0].toUpperCase() : '?';
+  document.getElementById('sidebarAva').textContent = initials;
+  // Show truncated email in sidebar
+  const label = user.email.length > 22 ? user.email.slice(0, 20) + '…' : user.email;
+  document.getElementById('sidebarUserName').textContent = label;
+  // Hide auth overlay, show dashboard
+  document.getElementById('auth-overlay').classList.add('hidden');
+  document.getElementById('layout').style.display = 'flex';
+}
+
+// ── AUTH STATE LISTENER ─────────────────────────
+sb.auth.onAuthStateChange((event, session) => {
+  if (session && session.user) {
+    onSignedIn(session.user);
+  } else {
+    document.getElementById('layout').style.display = 'none';
+    document.getElementById('auth-overlay').classList.remove('hidden');
+  }
+});
+
+// Hide layout on initial load until session is confirmed
+document.getElementById('layout').style.display = 'none';
+
+// ── CLOCK ──────────────────────────────────────
+function updateClock(){
+  const now=new Date();
+  document.getElementById('clockDisplay').textContent=
+    now.toLocaleTimeString('es-PE',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+}
+setInterval(updateClock,1000); updateClock();
+
+// ── NAVIGATION ─────────────────────────────────
+const TITLES={
+  dashboard:'Dashboard <span>/ Vista general</span>',
+  calidad:'Calidad del Aire <span>/ Análisis histórico</span>',
+  prediccion:'Predicción IA <span>/ Modelo de riesgo</span>',
+  rutas:'Rutas & Tránsito <span>/ Movilidad urbana</span>',
+  planes:'Planes Ambientales <span>/ Estrategias 2026</span>',
+  encuesta:'Encuesta Ciudadana <span>/ 90 respuestas</span>',
+  nodos:'Nodos Sensores <span>/ Gestión de infraestructura</span>',
+};
+let activeSection='dashboard';
+const chartsInit={};
+
+document.querySelectorAll('.nav-item[data-sec]').forEach(el=>{
+  el.addEventListener('click',()=>switchSection(el.dataset.sec));
+});
+
+function switchSection(id){
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.querySelector(`.nav-item[data-sec="${id}"]`)?.classList.add('active');
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.getElementById('sec-'+id)?.classList.add('active');
+  document.getElementById('topTitle').innerHTML=TITLES[id]||id;
+  document.getElementById('content').scrollTop=0;
+  activeSection=id;
+  if(!chartsInit[id]){chartsInit[id]=true;initCharts(id);}
+}
+
+// ── CHART.JS DEFAULTS ──────────────────────────
+Chart.defaults.color='#527A8A';
+Chart.defaults.borderColor='rgba(35,170,186,0.12)';
+Chart.defaults.font.family="'Space Mono', monospace";
+Chart.defaults.font.size=10;
+
+const HOURS24=['00h','01h','02h','03h','04h','05h','06h','07h','08h','09h','10h','11h','12h','13h','14h','15h','16h','17h','18h','19h','20h','21h','22h','23h'];
+
+function initCharts(sec){
+  if(sec==='dashboard') initDashboardCharts();
+  else if(sec==='calidad') initCalidadCharts();
+  else if(sec==='prediccion'){initPrediccionCharts();initAdminMap();}
+  else if(sec==='rutas') initRutasCharts();
+  else if(sec==='planes') initPlanesCharts();
+  else if(sec==='nodos') initNodosCharts();
+}
+
+// ── DASHBOARD CHARTS ───────────────────────────
+function initDashboardCharts(){
+  const bolognesi=[52,48,55,145,187,172,156,134,112,98,88,76,72,78,68,65,72,70,98,115,108,95,72,58];
+  const mercado  =[38,35,42,88,134,120,108,95,82,72,65,58,55,60,52,50,58,55,82,89,78,68,55,44];
+  const centro   =[22,20,24,38,48,44,40,36,32,28,26,24,22,26,22,22,28,26,38,42,36,32,26,22];
+  new Chart(document.getElementById('chartPM25_24h'),{
+    type:'line',
+    data:{
+      labels:HOURS24,
+      datasets:[
+        {label:'Bolognesi',data:bolognesi,borderColor:'#F84439',backgroundColor:'rgba(248,68,57,0.08)',tension:0.4,pointRadius:0,borderWidth:2},
+        {label:'Mercado Central',data:mercado,borderColor:'#EAA12C',backgroundColor:'rgba(234,161,44,0.08)',tension:0.4,pointRadius:0,borderWidth:2},
+        {label:'Centro Histórico',data:centro,borderColor:'#3DBE6C',backgroundColor:'rgba(61,190,108,0.08)',tension:0.4,pointRadius:0,borderWidth:2},
+        {label:'ECA 25',data:Array(24).fill(25),borderColor:'rgba(255,255,255,0.3)',borderDash:[6,4],pointRadius:0,borderWidth:1,fill:false},
+      ]
+    },
+    options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{min:0,max:220,grid:{color:'rgba(35,170,186,0.08)'}},x:{grid:{color:'rgba(35,170,186,0.06)'}}}}
+  });
+  populateIncidentsTable();
+}
+
+function populateIncidentsTable(){
+  const rows=[
+    ['07:15','Av. Bolognesi #001','PM2.5','187 µg/m³','25 µg/m³','×7.5','danger'],
+    ['07:20','Av. Bolognesi #001','CO₂','650 ppm','400 ppm','×1.6','warn'],
+    ['07:35','Mercado Central #002','PM2.5','134 µg/m³','25 µg/m³','×5.4','danger'],
+    ['06:45','Av. Bolognesi #001','UV','9 índice','6 índice','×1.5','warn'],
+    ['08:10','Mercado Central #002','CO₂','420 ppm','400 ppm','×1.1','warn'],
+    ['22:00','Av. Bolognesi #001','PM2.5','115 µg/m³','25 µg/m³','×4.6','danger'],
+    ['18:30','Mercado Central #002','PM2.5','89 µg/m³','25 µg/m³','×3.6','warn'],
+  ];
+  document.getElementById('incidentsTbl').innerHTML=rows.map(r=>`
+    <tr>
+      <td style="font-family:'Space Mono',monospace;font-size:11px;">${r[0]}</td>
+      <td><strong>${r[1]}</strong></td>
+      <td>${r[2]}</td>
+      <td class="metric-table-val ${r[6]==='danger'?'danger-val':'warn-val'}">${r[3]}</td>
+      <td style="color:var(--text3)">${r[4]}</td>
+      <td class="metric-table-val ${r[6]==='danger'?'danger-val':'warn-val'}">${r[5]}</td>
+      <td><span class="badge ${r[6]}">${r[6]==='danger'?'CRÍTICO':'MODERADO'}</span></td>
+    </tr>`).join('');
+}
+
+// ── CALIDAD CHARTS ─────────────────────────────
+function initCalidadCharts(){
+  // 7-day trend (hourly averages)
+  const days=['L','M','X','J','V','S','D'];
+  new Chart(document.getElementById('chartPM25_trend'),{
+    type:'line',
+    data:{
+      labels:days.flatMap(d=>['6h','12h','18h','24h'].map(h=>d+' '+h)),
+      datasets:[
+        {label:'Bolognesi',data:[98,145,115,72,110,187,158,120,88,145,188,102,78,120,140,90,95,168,155,110,62,88,112,95,85,135,142,88],borderColor:'#F84439',tension:0.4,pointRadius:0,borderWidth:2,fill:false},
+        {label:'Mercado',  data:[72,108,88,55,85,134,118,92,68,112,142,80,60,95,108,72,72,128,115,86,48,68,88,72,65,102,110,68],borderColor:'#EAA12C',tension:0.4,pointRadius:0,borderWidth:2,fill:false},
+        {label:'Centro',   data:[28,42,36,24,32,48,40,30,26,44,50,32,24,38,42,28,28,45,42,32,20,26,34,28,26,40,44,28],borderColor:'#3DBE6C',tension:0.4,pointRadius:0,borderWidth:1.5,fill:false},
+        {label:'ECA 25',   data:Array(28).fill(25),borderColor:'rgba(255,255,255,0.3)',borderDash:[5,5],pointRadius:0,borderWidth:1,fill:false},
+      ]
+    },
+    options:{responsive:true,plugins:{legend:{position:'top'}},scales:{y:{min:0,grid:{color:'rgba(35,170,186,0.08)'}},x:{grid:{display:false}}}}
+  });
+  new Chart(document.getElementById('chartPollutants'),{
+    type:'radar',
+    data:{
+      labels:['PM2.5','CO₂','UV','Ozono','Temp'],
+      datasets:[
+        {label:'Bolognesi',data:[95,82,90,65,40],borderColor:'#F84439',backgroundColor:'rgba(248,68,57,0.15)',pointBackgroundColor:'#F84439'},
+        {label:'Mercado',  data:[70,65,70,45,50],borderColor:'#EAA12C',backgroundColor:'rgba(234,161,44,0.10)',pointBackgroundColor:'#EAA12C'},
+        {label:'Centro',   data:[35,48,60,30,48],borderColor:'#3DBE6C',backgroundColor:'rgba(61,190,108,0.10)',pointBackgroundColor:'#3DBE6C'},
+      ]
+    },
+    options:{responsive:true,scales:{r:{grid:{color:'rgba(35,170,186,0.12)'},ticks:{display:false},pointLabels:{color:'#B0C9D9'}}},plugins:{legend:{position:'top'}}}
+  });
+  new Chart(document.getElementById('chartECA'),{
+    type:'bar',
+    data:{
+      labels:['Bolognesi\nPM2.5','Mercado\nPM2.5','Centro\nPM2.5','Bolognesi\nCO₂','Mercado\nCO₂','Centro\nCO₂'],
+      datasets:[
+        {label:'Valor medido',data:[187,134,48,162.5,105,97],backgroundColor:['#F84439','#EAA12C','#3DBE6C','#F84439','#EAA12C','#3DBE6C']},
+        {label:'Límite ECA',data:[25,25,25,100,100,100],backgroundColor:'rgba(255,255,255,0.15)',borderColor:'rgba(255,255,255,0.4)',borderWidth:1},
+      ]
+    },
+    options:{responsive:true,plugins:{legend:{position:'top'}},scales:{y:{grid:{color:'rgba(35,170,186,0.08)'}},x:{grid:{display:false}}}}
+  });
+}
+
+// ── PREDICCION CHARTS ──────────────────────────
+let adminMapInstance=null;
+function initPrediccionCharts(){
+  new Chart(document.getElementById('chartModelAccuracy'),{
+    type:'line',
+    data:{
+      labels:['Ene','Feb','Mar','Abr','May'],
+      datasets:[{
+        label:'Precisión',data:[72,76,79,83,87],
+        borderColor:'#23AABA',backgroundColor:'rgba(35,170,186,0.1)',
+        tension:0.4,fill:true,pointRadius:3,pointBackgroundColor:'#23AABA'
+      }]
+    },
+    options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{min:60,max:100,grid:{color:'rgba(35,170,186,0.08)'}},x:{grid:{display:false}}}}
+  });
+}
+
+function initAdminMap(){
+  if(adminMapInstance) return;
+  adminMapInstance=L.map('adminMap',{zoomControl:true}).setView([-18.013,-70.251],14);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OSM'}).addTo(adminMapInstance);
+
+  const nodes=[
+    {pos:[-18.0133,-70.2531],name:'Nodo #001 · Av. Bolognesi',status:'danger',pm25:187,risk:84},
+    {pos:[-18.0145,-70.2480],name:'Nodo #002 · Mercado Central',status:'warn',pm25:134,risk:61},
+    {pos:[-18.0120,-70.2495],name:'Nodo #003 · Centro Histórico',status:'ok',pm25:48,risk:18},
+  ];
+  const colors={danger:'#F84439',warn:'#EAA12C',ok:'#3DBE6C'};
+  nodes.forEach(n=>{
+    const r=n.status==='danger'?48:n.status==='warn'?32:18;
+    L.circle(n.pos,{radius:r*8,color:colors[n.status],fillColor:colors[n.status],fillOpacity:0.15,weight:2}).addTo(adminMapInstance);
+    const icon=L.divIcon({className:'',html:`<div style="width:18px;height:18px;border-radius:50%;background:${colors[n.status]};border:2px solid white;box-shadow:0 0 14px ${colors[n.status]};"></div>`,iconSize:[18,18],iconAnchor:[9,9]});
+    L.marker(n.pos,{icon}).addTo(adminMapInstance)
+      .bindPopup(`<b style="color:${colors[n.status]}">${n.name}</b><br>PM2.5: <b>${n.pm25} µg/m³</b><br>Riesgo IA: <b>${n.risk}/100</b>`);
+  });
+}
+
+// ── RUTAS CHARTS ───────────────────────────────
+function initRutasCharts(){
+  new Chart(document.getElementById('chartTrafficFlow'),{
+    type:'bar',
+    data:{
+      labels:['06h','07h','08h','09h','10h','11h','12h','13h','14h','15h','16h','17h','18h','19h','20h','21h'],
+      datasets:[
+        {label:'Bolognesi',data:[320,780,956,820,540,460,580,620,540,490,560,720,880,790,560,380],backgroundColor:'rgba(248,68,57,0.7)'},
+        {label:'Mercado',  data:[180,520,680,590,380,340,450,490,420,390,440,580,640,580,420,280],backgroundColor:'rgba(234,161,44,0.7)'},
+        {label:'Centro',   data:[80,180,240,210,160,140,190,210,180,160,180,220,260,240,190,140],backgroundColor:'rgba(61,190,108,0.7)'},
+      ]
+    },
+    options:{responsive:true,plugins:{legend:{position:'top'}},scales:{y:{stacked:false,grid:{color:'rgba(35,170,186,0.08)'}},x:{grid:{display:false}}}}
+  });
+  new Chart(document.getElementById('chartRouteRisk'),{
+    type:'bar',
+    data:{
+      labels:['Ruta Óptima\n(Zela→S.Martín→Pinto)','Ruta Alternativa\n(Leguía→Basadre)','Ruta Directa\n(Bolognesi)'],
+      datasets:[
+        {label:'Contaminación',data:[14,33,55],backgroundColor:'rgba(35,170,186,0.8)',stack:'risk'},
+        {label:'Accidentes',  data:[3,22,25],backgroundColor:'rgba(123,108,246,0.8)',stack:'risk'},
+        {label:'Flujo',       data:[1,5,4],backgroundColor:'rgba(61,190,108,0.6)',stack:'risk'},
+      ]
+    },
+    options:{responsive:true,plugins:{legend:{position:'top'}},scales:{x:{stacked:true,grid:{display:false}},y:{stacked:true,max:100,grid:{color:'rgba(35,170,186,0.08)'}}}}
+  });
+}
+
+// ── PLANES CHARTS ──────────────────────────────
+function initPlanesCharts(){
+  new Chart(document.getElementById('chartCO2Reduction'),{
+    type:'line',
+    data:{
+      labels:['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'],
+      datasets:[
+        {label:'Línea base',data:[650,648,652,645,650,648,0,0,0,0,0,0],borderColor:'rgba(248,68,57,0.6)',borderDash:[6,4],tension:0.3,pointRadius:2,fill:false},
+        {label:'Con Plan 01',data:[650,648,652,645,650,648,570,530,490,460,440,430],borderColor:'#EAA12C',tension:0.4,pointRadius:2,fill:false},
+        {label:'Con Todos los Planes',data:[650,648,652,645,650,648,520,470,420,380,350,330],borderColor:'#3DBE6C',backgroundColor:'rgba(61,190,108,0.06)',tension:0.4,pointRadius:2,fill:true},
+      ]
+    },
+    options:{responsive:true,plugins:{legend:{position:'top'}},scales:{y:{grid:{color:'rgba(35,170,186,0.08)'}},x:{grid:{display:false}}}}
+  });
+  new Chart(document.getElementById('chartPlanImpact'),{
+    type:'doughnut',
+    data:{
+      labels:['Restricción vehicular','Ciclovía','Alerta temprana','Nuevos nodos','Educación ECA'],
+      datasets:[{
+        data:[35,20,18,15,12],
+        backgroundColor:['#F84439','#EAA12C','#23AABA','#3DBE6C','#7B6CF6'],
+        borderColor:'transparent',hoverOffset:6
+      }]
+    },
+    options:{responsive:true,plugins:{legend:{position:'right'}},cutout:'60%'}
+  });
+}
+
+// ── NODOS CHARTS ───────────────────────────────
+function initNodosCharts(){
+  const h8=['00h','01h','02h','03h','04h','05h','06h','07h'];
+  new Chart(document.getElementById('chartNodesHistory'),{
+    type:'line',
+    data:{
+      labels:h8,
+      datasets:[
+        {label:'Bolognesi #001',data:[52,48,55,145,187,172,156,134],borderColor:'#F84439',backgroundColor:'rgba(248,68,57,0.08)',tension:0.4,fill:true,pointRadius:3,pointBackgroundColor:'#F84439'},
+        {label:'Mercado #002',  data:[38,35,42,88,134,120,108,95], borderColor:'#EAA12C',backgroundColor:'rgba(234,161,44,0.08)',tension:0.4,fill:true,pointRadius:3,pointBackgroundColor:'#EAA12C'},
+        {label:'Centro #003',   data:[22,20,24,38,48,44,40,36],    borderColor:'#3DBE6C',backgroundColor:'rgba(61,190,108,0.08)',tension:0.4,fill:true,pointRadius:3,pointBackgroundColor:'#3DBE6C'},
+        {label:'ECA 25',        data:Array(8).fill(25),borderColor:'rgba(255,255,255,0.3)',borderDash:[6,4],pointRadius:0,borderWidth:1,fill:false},
+      ]
+    },
+    options:{responsive:true,plugins:{legend:{position:'top'}},scales:{y:{min:0,grid:{color:'rgba(35,170,186,0.08)'}},x:{grid:{display:false}}}}
+  });
+}
+
+// ── SCENARIOS ──────────────────────────────────
+const SC=[
+  {pm25:[187,134,48],co2:[650,420,388],uv:[9,7,6],zonas:2,alertas:7,avgPM:156},
+  {pm25:[72,58,35], co2:[420,400,375],uv:[8,7,6],zonas:0,alertas:2,avgPM:55},
+  {pm25:[115,89,42],co2:[510,435,380],uv:[1,1,0],zonas:2,alertas:5,avgPM:82},
+];
+function applyScenario(){
+  const i=parseInt(document.getElementById('scenarioSel').value);
+  const s=SC[i];
+  document.getElementById('kpi-pm25').textContent=s.avgPM;
+  document.getElementById('kpi-zonas').textContent=s.zonas;
+  document.getElementById('kpi-alertas').textContent=s.alertas;
+  document.getElementById('kpi-pm25-delta').textContent=i===0?'↑ +12% vs ayer':i===1?'↓ −31% vs mañana':'↑ +34% vs tarde';
+  document.getElementById('kpi-zonas-delta').textContent=s.zonas>0?'↑ ECA superado':'↓ Dentro del límite';
+  ['b','m','c'].forEach((k,j)=>{
+    document.getElementById(`live-${k}-pm`).textContent=s.pm25[j];
+    document.getElementById(`live-${k}-co2`).textContent=s.co2[j];
+    document.getElementById(`live-${k}-uv`).textContent=s.uv[j];
+  });
+}
+
+// ── LIVE DATA SIMULATION ───────────────────────
+function jitter(base,range){return Math.round(base+(Math.random()-0.5)*range);}
+setInterval(()=>{
+  if(activeSection!=='dashboard') return;
+  const i=parseInt(document.getElementById('scenarioSel')?.value||0);
+  const s=SC[i];
+  document.getElementById('live-b-pm').textContent=jitter(s.pm25[0],8);
+  document.getElementById('live-m-pm').textContent=jitter(s.pm25[1],6);
+  document.getElementById('live-c-pm').textContent=jitter(s.pm25[2],4);
+},4000);
+
+// ── INIT ────────────────────────────────────────
+initCharts('dashboard');
+</script>
+</body>
+</html>

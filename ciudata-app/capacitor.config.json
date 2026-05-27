@@ -1,0 +1,33 @@
+{
+  "appId": "com.ciudata.app",
+  "appName": "CIUDATA",
+  "webDir": "www",
+  "android": {
+    "captureInput": true,
+    "webContentsDebuggingEnabled": false,
+    "backgroundColor": "#0B1410",
+    "loggingBehavior": "none"
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 0,
+      "backgroundColor": "#0B1410",
+      "showSpinner": false
+    },
+    "Geolocation": {
+      "requestPermissions": true
+    },
+    "PushNotifications": {
+      "presentationOptions": ["badge", "sound", "alert"]
+    },
+    "StatusBar": {
+      "style": "DARK",
+      "backgroundColor": "#0B1410",
+      "overlaysWebView": false
+    }
+  },
+  "server": {
+    "androidScheme": "https",
+    "cleartext": false
+  }
+}

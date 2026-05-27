@@ -1,0 +1,94 @@
+apply plugin: 'com.android.application'
+apply from: 'capacitor.build.gradle'
+
+android {
+    namespace "com.ciudata.app"
+    compileSdkVersion 34
+    defaultConfig {
+        applicationId "com.ciudata.app"
+        minSdkVersion 22
+        targetSdkVersion 34
+        versionCode 1
+        versionName "1.0.0"
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        // Optimizaciones WebView
+        multiDexEnabled true
+    }
+
+    signingConfigs {
+        release {
+            // INSTRUCCIÓN: Genera tu keystore con:
+            // keytool -genkey -v -keystore ciudata-release.jks
+            //   -alias ciudata -keyalg RSA -keysize 2048 -validity 10000
+            // Configura las variables de entorno antes de compilar release:
+            // CIUDATA_STORE_FILE, CIUDATA_STORE_PASSWORD, CIUDATA_KEY_ALIAS, CIUDATA_KEY_PASSWORD
+            def storeFilePath = System.getenv("CIUDATA_STORE_FILE")
+            storeFile storeFilePath ? file(storeFilePath) : null
+            storePassword System.getenv("CIUDATA_STORE_PASSWORD")
+            keyAlias System.getenv("CIUDATA_KEY_ALIAS")
+            keyPassword System.getenv("CIUDATA_KEY_PASSWORD")
+        }
+    }
+
+    buildTypes {
+        debug {
+            debuggable true
+            applicationIdSuffix ".debug"
+            versionNameSuffix "-debug"
+            resValue "string", "app_name", "CIUDATA Dev"
+        }
+        release {
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            signingConfig signingConfigs.release
+            resValue "string", "app_name", "CIUDATA"
+            // Optimización máxima
+            zipAlignEnabled true
+        }
+    }
+
+    bundle {
+        language { enableSplit = true }
+        density  { enableSplit = true }
+        abi      { enableSplit = true }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    packagingOptions {
+        resources.excludes += '/META-INF/{AL2.0,LGPL2.1}'
+    }
+
+    lint {
+        abortOnError false
+        checkReleaseBuilds false
+    }
+}
+
+dependencies {
+    // Capacitor Core
+    implementation project(':capacitor-android')
+
+    // AndroidX
+    implementation 'androidx.appcompat:appcompat:1.7.0'
+    implementation 'androidx.coordinatorlayout:coordinatorlayout:1.2.0'
+    implementation 'androidx.core:core:1.13.1'
+    implementation 'androidx.webkit:webkit:1.11.0'
+
+    // MultiDex
+    implementation 'androidx.multidex:multidex:2.0.1'
+
+    // Capacitor Plugins — cargados desde node_modules vía capacitor.build.gradle
+
+    // Firebase (Push Notifications - configurar google-services.json)
+    // implementation platform('com.google.firebase:firebase-bom:32.0.0')
+    // implementation 'com.google.firebase:firebase-messaging'
+
+    // Tests
+    testImplementation 'junit:junit:4.13.2'
+    androidTestImplementation 'androidx.test.ext:junit:1.2.1'
+}
