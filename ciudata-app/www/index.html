@@ -749,6 +749,7 @@
     .route-tag.bad  { color:var(--danger); border-color:rgba(248,68,57,0.3); background:rgba(248,68,57,0.06); }
     .ai-disclaimer { font-size:10px; color:var(--text3); text-align:center; font-family:'Space Mono',monospace; margin-top:8px; line-height:1.6; }
   </style>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 </head>
 <body>
 
@@ -1246,6 +1247,113 @@ const SCENARIOS = [
   },
 ];
 let currentScenario = 0;
+
+// ── SUPABASE / API CONFIG ─────────────────────────────────────
+const SUPABASE_URL  = 'https://cxulazyqmsfwatmsctzf.supabase.co';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN4dWxhenlxbXNmd2F0bXNjdHpmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkzNzM5NzcsImV4cCI6MjA5NDk0OTk3N30.cTFnaWDMnbzYNs9GU0STMzcydPxNna2Ldu_8M9zJIUI';
+
+// ciudata-api — cambia a tu URL desplegada cuando subas a producción
+// Local Android emulator: 'http://10.0.2.2:3000'
+const API_BASE = 'https://ciudata-api.up.railway.app';
+
+let sbApp = null;
+if (typeof supabase !== 'undefined') {
+  sbApp = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+}
+
+// ── REAL DATA LOADER ─────────────────────────────────────────
+async function loadSupabaseData() {
+  if (!sbApp) return;
+  try {
+    const { data: domos, error: e1 } = await sbApp
+      .from('domos').select('id, nombre, lat, lng').eq('activo', true);
+    if (e1 || !domos?.length) return;
+
+    const { data: lecturas } = await sbApp
+      .from('lecturas_domos')
+      .select('domo_id, pm25, anomalia, leida_at')
+      .in('domo_id', domos.map(d => d.id))
+      .order('leida_at', { ascending: false })
+      .limit(domos.length * 5);
+
+    // Última lectura por domo
+    const latest = {};
+    (lecturas || []).forEach(l => { if (!latest[l.domo_id]) latest[l.domo_id] = l; });
+
+    const nodes = domos.map(d => {
+      const l = latest[d.id];
+      const pm25 = Math.round(l?.pm25 ?? 12);
+      const anom = l?.anomalia ?? false;
+      const state = pm25 > 50 ? 'DANGER' : pm25 > 25 ? 'WARN' : 'OK';
+      const ind   = pm25 > 50 ? 'ind-danger' : pm25 > 25 ? 'ind-warn' : 'ind-ok';
+      return {
+        name: d.nombre,
+        loc: `${d.lat.toFixed(4)}, ${d.lng.toFixed(4)} · ${anom ? '⚠ Anomalía' : '● Online'}`,
+        icon: anom ? '🏭' : pm25 > 25 ? '⚠' : '🌿',
+        state, ind, pm25, co2: Math.round(380 + pm25 * 0.7), uv: 5,
+      };
+    });
+
+    renderNodes({ nodes });
+
+    // Actualizar tarjeta PM2.5
+    const avgPm25 = Math.round(nodes.reduce((s, n) => s + n.pm25, 0) / nodes.length);
+    const maxPm25 = Math.max(...nodes.map(n => n.pm25));
+    const pm25Color = maxPm25 > 50 ? 'var(--danger)' : maxPm25 > 25 ? 'var(--warn)' : 'var(--green)';
+    const pm25Status = maxPm25 > 100 ? '⚠ Crítico' : maxPm25 > 50 ? '↑ Alto' : maxPm25 > 25 ? '↑ Moderado' : '✓ Bueno';
+    document.getElementById('aqi-card-pm25')?.style.setProperty('--indicator-color', pm25Color);
+    const valEl = document.getElementById('val-pm25');
+    if (valEl) animateCounter(valEl, avgPm25);
+    const statEl = document.getElementById('aqi-status-pm25');
+    if (statEl) statEl.textContent = pm25Status;
+
+    showToast('📡 Datos en vivo · Supabase');
+
+    // Realtime: actualizar nodos cuando llegue una nueva lectura
+    sbApp.channel('app-lecturas')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'lecturas_domos' },
+        () => setTimeout(loadSupabaseData, 400))
+      .subscribe();
+
+  } catch (err) {
+    console.warn('[CIUDATA] Supabase no disponible, usando datos demo:', err?.message);
+  }
+}
+
+// ── API HELPERS (ciudata-api) ─────────────────────────────────
+const CiudataAPI = {
+  async post(path, body) {
+    try {
+      const r = await fetch(API_BASE + path, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      return r.ok ? r.json() : null;
+    } catch { return null; }
+  },
+  async get(path, token) {
+    try {
+      const headers = token ? { Authorization: 'Bearer ' + token } : {};
+      const r = await fetch(API_BASE + path, { headers });
+      return r.ok ? r.json() : null;
+    } catch { return null; }
+  },
+  // Auth OTP
+  requestOtp: (phone) => CiudataAPI.post('/auth/otp/request', { phone }),
+  verifyOtp:  (phone, otp) => CiudataAPI.post('/auth/otp/verify', { phone, otp }),
+  // Puntos
+  getPuntos:  (token) => CiudataAPI.get('/puntos', token),
+  // Encuesta activa
+  getEncuesta: (token) => CiudataAPI.get('/encuesta/activa', token),
+  submitEncuesta: (token, body) => CiudataAPI.post('/encuesta/responder', { ...body, token }),
+  // Rutas
+  getRutas: (origen, destino, token) => CiudataAPI.post('/ruta/recomendar', { origen, destino, token }),
+  // Reportes
+  submitReporte: (body, token) => CiudataAPI.post('/reporte', { ...body, token }),
+  // Ranking
+  getRanking: () => CiudataAPI.get('/ranking'),
+};
 
 function renderNodes(s) {
   const list = document.getElementById('nodesList');
@@ -2022,6 +2130,7 @@ window.addEventListener('DOMContentLoaded', () => {
   const saved = localStorage.getItem('ciudata_theme');
   if (saved === 'light') applyTheme(true);
   document.documentElement.classList.remove('prelight');
+  loadSupabaseData();
 });
 </script>
 </body>

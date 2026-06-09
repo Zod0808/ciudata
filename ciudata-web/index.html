@@ -1041,11 +1041,14 @@ tbody tr:last-child td{border-bottom:none;}
 <script>
 // ── SUPABASE CONFIG ─────────────────────────────
 // Reemplaza estos valores con los de tu proyecto en https://supabase.com/dashboard
-const SUPABASE_URL  = 'https://agswvyjifhrrwclfvwur.supabase.co';
-const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFnc3d2eWppZmhycndjbGZ2d3VyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk0MTcyMzUsImV4cCI6MjA5NDk5MzIzNX0.4T3uLC7hiADUM91fvU8qHRIUYJaPKn7rROEHYwTv4mg';
+const SUPABASE_URL  = 'https://cxulazyqmsfwatmsctzf.supabase.co';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN4dWxhenlxbXNmd2F0bXNjdHpmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkzNzM5NzcsImV4cCI6MjA5NDk0OTk3N30.cTFnaWDMnbzYNs9GU0STMzcydPxNna2Ldu_8M9zJIUI';
 
 const { createClient } = supabase;
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
+
+// ciudata-api — cambia a tu URL real cuando esté desplegado
+const API_BASE = 'https://ciudata-api.up.railway.app';
 
 // ── AUTH HELPERS ────────────────────────────────
 function switchAuthTab(tab) {
@@ -1187,6 +1190,73 @@ function initCharts(sec){
   else if(sec==='planes') initPlanesCharts();
   else if(sec==='nodos') initNodosCharts();
 }
+
+// ── LIVE SENSOR DATA (Supabase) ────────────────
+let _realtimeChannel = null;
+
+async function loadSensorData() {
+  try {
+    // Domos activos
+    const { data: domos } = await sb.from('domos').select('id,nombre,lat,lng').eq('activo',true);
+    if (!domos?.length) return;
+
+    // Últimas lecturas (una por domo)
+    const { data: lecturas } = await sb
+      .from('lecturas_domos')
+      .select('domo_id,pm25,anomalia,leida_at')
+      .in('domo_id', domos.map(d=>d.id))
+      .order('leida_at',{ascending:false})
+      .limit(domos.length * 3);
+
+    const latest = {};
+    (lecturas||[]).forEach(l=>{ if(!latest[l.domo_id]) latest[l.domo_id]=l; });
+
+    // Actualizar KPI cards si existen
+    const vals = domos.map(d=>latest[d.id]?.pm25 ?? 0);
+    const avg = vals.length ? Math.round(vals.reduce((a,b)=>a+b,0)/vals.length) : '--';
+    const max = vals.length ? Math.max(...vals) : '--';
+    const anomalias = (lecturas||[]).filter(l=>l.anomalia).length;
+
+    const setKpi = (id, val) => { const el=document.getElementById(id); if(el) el.textContent=val; };
+    setKpi('kpi-pm25-avg',   avg + ' µg');
+    setKpi('kpi-pm25-max',   max + ' µg');
+    setKpi('kpi-anomalias',  anomalias);
+    setKpi('kpi-domos-activos', domos.length);
+
+    // Nodos section: actualizar tabla si existe
+    const tbody = document.getElementById('nodos-tbody');
+    if (tbody) {
+      tbody.innerHTML = domos.map(d => {
+        const l = latest[d.id];
+        const pm25 = l?.pm25?.toFixed(1) ?? '—';
+        const ts = l ? new Date(l.leida_at).toLocaleTimeString('es-PE',{hour:'2-digit',minute:'2-digit'}) : '—';
+        const anom = l?.anomalia;
+        const badge = anom
+          ? '<span style="color:var(--danger);font-weight:700">⚠ Anomalía</span>'
+          : '<span style="color:var(--green)">● Online</span>';
+        return `<tr>
+          <td>${d.nombre}</td>
+          <td style="font-family:'Space Mono',monospace">${pm25} µg/m³</td>
+          <td>${badge}</td>
+          <td style="color:var(--text3);font-size:11px">${ts}</td>
+        </tr>`;
+      }).join('');
+    }
+
+    // Realtime — suscribir una sola vez
+    if (!_realtimeChannel) {
+      _realtimeChannel = sb.channel('web-lecturas')
+        .on('postgres_changes',{event:'INSERT',schema:'public',table:'lecturas_domos'},
+          ()=>setTimeout(loadSensorData, 500))
+        .subscribe();
+    }
+  } catch(err) {
+    console.warn('[CIUDATA WEB] Supabase error:', err?.message);
+  }
+}
+
+// Llamar al cargar y al activar sección nodos/dashboard
+loadSensorData();
 
 // ── DASHBOARD CHARTS ───────────────────────────
 function initDashboardCharts(){

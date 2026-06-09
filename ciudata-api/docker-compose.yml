@@ -1,0 +1,72 @@
+services:
+
+  api:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL:   postgresql://ciudata:ciudata123@postgres:5432/ciudata_db
+      REDIS_URL:      redis://redis:6379
+      PORT:           "3000"
+      NODE_ENV:       development
+      JWT_SECRET:     dev_secret_change_in_production
+      ADMIN_KEY:      dev_admin_key_change_in_production
+      DOMO_WEBHOOK_SECRET: dev_domo_secret
+      RANKING_CACHE_TTL: "3600"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./src:/app/src       # hot-reload en dev
+    command: ["node", "src/app.js"]
+
+  scheduler:
+    build: .
+    environment:
+      DATABASE_URL:   postgresql://ciudata:ciudata123@postgres:5432/ciudata_db
+      REDIS_URL:      redis://redis:6379
+      NODE_ENV:       development
+      JWT_SECRET:     dev_secret_change_in_production
+      RANKING_CACHE_TTL: "3600"
+    depends_on:
+      - postgres
+      - redis
+    command: ["node", "src/scheduler.js"]
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER:     ciudata
+      POSTGRES_PASSWORD: ciudata123
+      POSTGRES_DB:       ciudata_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./schema.sql:/docker-entrypoint-initdb.d/001_schema.sql
+      - ./migrations/002_encuestas_sponsors.sql:/docker-entrypoint-initdb.d/002_encuestas_sponsors.sql
+      - ./migrations/003_referidos_domos.sql:/docker-entrypoint-initdb.d/003_referidos_domos.sql
+      - ./migrations/004_auth_partitioning.sql:/docker-entrypoint-initdb.d/004_auth_partitioning.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ciudata -d ciudata_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  pgdata:
+  redisdata:

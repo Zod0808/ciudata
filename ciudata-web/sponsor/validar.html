@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0A1C24">
+<title>CIUDATA — Validar Premio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<!-- html5-qrcode: lector QR por cámara sin dependencias nativas -->
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<style>
+:root{
+  --bg:#0A1C24; --bg2:#0F2530; --bg3:#152E3C; --card:#1B3848;
+  --primary:#23AABA; --primary-d:#1A7D8A; --primary-l:#2EC5D8;
+  --green:#3DBE6C; --green-d:#1F7840;
+  --orange:#EAA12C; --danger:#F84439;
+  --text:#E8F4F8; --text2:#B0C9D9; --text3:#527A8A;
+  --border:rgba(35,170,186,0.18);
+  --radius:14px; --radius-sm:10px;
+  --shadow:0 8px 32px rgba(0,0,0,0.65);
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{min-height:100%;background:var(--bg);font-family:'Syne',sans-serif;color:var(--text);}
+body{padding:0;display:flex;flex-direction:column;align-items:center;}
+
+/* ── HEADER ── */
+.header{
+  width:100%;background:var(--bg2);border-bottom:1px solid var(--border);
+  padding:14px 20px;display:flex;align-items:center;gap:12px;
+  position:sticky;top:0;z-index:50;
+}
+.logo{font-family:'Space Mono',monospace;font-size:16px;font-weight:700;letter-spacing:4px;}
+.logo span{color:var(--primary);}
+.logo-sub{font-size:8px;letter-spacing:3px;color:var(--orange);font-family:'Space Mono',monospace;display:block;}
+.sponsor-tag{
+  margin-left:auto;font-size:11px;font-family:'Space Mono',monospace;
+  background:rgba(35,170,186,0.1);color:var(--primary);
+  border:1px solid var(--border);padding:4px 12px;border-radius:99px;
+}
+
+/* ── MAIN ── */
+.main{width:100%;max-width:440px;padding:24px 16px 40px;display:flex;flex-direction:column;gap:20px;}
+
+/* ── ESTADO DE CONEXIÓN ── */
+.auth-error{
+  background:rgba(248,68,57,0.1);border:1px solid rgba(248,68,57,0.35);
+  color:var(--danger);padding:12px 16px;border-radius:var(--radius-sm);
+  font-size:13px;text-align:center;display:none;
+}
+.auth-error.visible{display:block;}
+
+/* ── SCANNER CARD ── */
+.card{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:var(--radius);padding:20px;box-shadow:var(--shadow);
+}
+.card-title{
+  font-size:11px;letter-spacing:3px;color:var(--text3);
+  font-family:'Space Mono',monospace;margin-bottom:14px;
+}
+
+#reader{
+  width:100%;border-radius:var(--radius-sm);overflow:hidden;
+  background:var(--bg3);min-height:240px;
+  display:flex;align-items:center;justify-content:center;
+}
+/* Estilo del viewport de html5-qrcode */
+#reader video{border-radius:var(--radius-sm);}
+#reader img{display:none!important;}
+#qr-shaded-region{border:3px solid var(--primary)!important;}
+
+.scan-placeholder{
+  display:flex;flex-direction:column;align-items:center;gap:12px;
+  color:var(--text3);font-size:13px;padding:32px 0;
+}
+.scan-placeholder svg{opacity:0.4;}
+
+.btn{
+  width:100%;padding:14px;border-radius:var(--radius-sm);border:none;
+  font-family:'Syne',sans-serif;font-size:14px;font-weight:700;
+  cursor:pointer;transition:all 0.18s;margin-top:12px;letter-spacing:0.5px;
+}
+.btn-primary{background:var(--primary);color:#fff;}
+.btn-primary:hover{background:var(--primary-l);}
+.btn-primary:active{transform:scale(0.98);}
+.btn-danger{background:rgba(248,68,57,0.15);color:var(--danger);border:1px solid rgba(248,68,57,0.3);}
+.btn-danger:hover{background:rgba(248,68,57,0.25);}
+
+/* ── RESULTADO ── */
+.result-card{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:var(--radius);padding:20px;box-shadow:var(--shadow);
+  display:none;
+}
+.result-card.visible{display:block;}
+
+.result-status{
+  display:flex;align-items:center;gap:12px;
+  padding:14px 16px;border-radius:var(--radius-sm);margin-bottom:16px;
+}
+.result-status.ok {background:rgba(61,190,108,0.1);border:1px solid rgba(61,190,108,0.3);}
+.result-status.err{background:rgba(248,68,57,0.1);border:1px solid rgba(248,68,57,0.3);}
+.result-status.warn{background:rgba(234,161,44,0.1);border:1px solid rgba(234,161,44,0.3);}
+
+.status-icon{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:20px;}
+.ok  .status-icon{background:rgba(61,190,108,0.2);}
+.err .status-icon{background:rgba(248,68,57,0.2);}
+.warn .status-icon{background:rgba(234,161,44,0.2);}
+.status-text{flex:1;}
+.status-title{font-size:15px;font-weight:800;}
+.ok   .status-title{color:var(--green);}
+.err  .status-title{color:var(--danger);}
+.warn .status-title{color:var(--orange);}
+.status-sub{font-size:11px;color:var(--text3);margin-top:2px;font-family:'Space Mono',monospace;}
+
+.premio-badge{
+  display:inline-flex;align-items:center;gap:8px;
+  padding:10px 16px;border-radius:var(--radius-sm);
+  font-family:'Space Mono',monospace;font-size:13px;font-weight:700;
+  margin-bottom:16px;width:100%;justify-content:center;
+}
+.premio-100{background:linear-gradient(135deg,rgba(234,161,44,0.25),rgba(234,161,44,0.1));border:1px solid rgba(234,161,44,0.4);color:var(--orange);}
+.premio-50 {background:rgba(35,170,186,0.15);border:1px solid var(--border);color:var(--primary);}
+.premio-30 {background:rgba(61,190,108,0.12);border:1px solid rgba(61,190,108,0.3);color:var(--green);}
+
+.detail-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.05);font-size:13px;}
+.detail-row:last-child{border-bottom:none;}
+.detail-key{color:var(--text3);font-family:'Space Mono',monospace;font-size:11px;}
+.detail-val{font-weight:700;font-family:'Space Mono',monospace;font-size:12px;}
+
+.btn-confirm{background:var(--green);color:#fff;margin-top:16px;}
+.btn-confirm:hover{background:var(--green-d);}
+.btn-confirm:disabled{opacity:0.4;cursor:not-allowed;transform:none;}
+
+/* ── HISTORIAL ── */
+.historial{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:20px;}
+.historial-list{list-style:none;display:flex;flex-direction:column;gap:8px;margin-top:12px;}
+.historial-item{
+  display:flex;align-items:center;gap:10px;
+  padding:10px 12px;border-radius:var(--radius-sm);
+  background:var(--bg3);font-size:12px;
+}
+.hist-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.hist-ok{background:var(--green);}
+.hist-err{background:var(--danger);}
+.hist-token{font-family:'Space Mono',monospace;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text2);}
+.hist-time{color:var(--text3);flex-shrink:0;}
+.historial-empty{color:var(--text3);font-size:12px;text-align:center;padding:16px 0;font-family:'Space Mono',monospace;}
+
+/* ── LOADING ── */
+.spinner{
+  display:inline-block;width:20px;height:20px;border:2px solid rgba(255,255,255,0.3);
+  border-top-color:#fff;border-radius:50%;animation:spin 0.7s linear infinite;vertical-align:middle;margin-right:8px;
+}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+/* ── TOAST ── */
+.toast{
+  position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);
+  background:var(--card);border:1px solid var(--border);border-radius:var(--radius-sm);
+  padding:12px 20px;font-size:13px;font-weight:700;box-shadow:var(--shadow);
+  transition:transform 0.35s cubic-bezier(.34,1.56,.64,1);z-index:999;white-space:nowrap;
+}
+.toast.show{transform:translateX(-50%) translateY(0);}
+.toast.toast-ok  {border-color:rgba(61,190,108,0.5);color:var(--green);}
+.toast.toast-err {border-color:rgba(248,68,57,0.5);color:var(--danger);}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <div class="logo"><span>CIU</span>DATA</div>
+    <span class="logo-sub">PANEL SPONSOR</span>
+  </div>
+  <span class="sponsor-tag" id="sponsorTag">Cargando…</span>
+</div>
+
+<div class="main">
+
+  <div class="auth-error" id="authError">
+    API key inválida o no proporcionada.<br>
+    Accede con la URL correcta: <code>?key=TU_API_KEY</code>
+  </div>
+
+  <!-- SCANNER -->
+  <div class="card" id="scannerCard">
+    <div class="card-title">ESCANEAR CÓDIGO QR</div>
+    <div id="reader">
+      <div class="scan-placeholder" id="scanPlaceholder">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+          <rect x="3" y="14" width="7" height="7" rx="1"/>
+          <path d="M14 14h1v1h-1zm3 0h1v1h-1zm-3 3h1v1h-1zm3 3h1v1h-1zm-3-3h3v1h-3z"/>
+        </svg>
+        <span>Presiona "Iniciar cámara"</span>
+      </div>
+    </div>
+    <button class="btn btn-primary" id="btnIniciar" onclick="iniciarScanner()">Iniciar cámara</button>
+    <button class="btn btn-danger" id="btnDetener" onclick="detenerScanner()" style="display:none">Detener cámara</button>
+  </div>
+
+  <!-- RESULTADO -->
+  <div class="result-card" id="resultCard">
+    <div class="card-title">RESULTADO DE VALIDACIÓN</div>
+
+    <div class="result-status" id="resultStatus">
+      <div class="status-icon" id="resultIcon"></div>
+      <div class="status-text">
+        <div class="status-title" id="resultTitle"></div>
+        <div class="status-sub" id="resultSub"></div>
+      </div>
+    </div>
+
+    <div id="premioBlock" style="display:none">
+      <div class="premio-badge" id="premioBadge"></div>
+      <div id="detalles"></div>
+      <button class="btn btn-confirm" id="btnConfirmar" onclick="confirmarCanje()">
+        Confirmar canje
+      </button>
+    </div>
+
+    <button class="btn btn-primary" onclick="resetScanner()" style="margin-top:12px">
+      Escanear otro código
+    </button>
+  </div>
+
+  <!-- HISTORIAL -->
+  <div class="historial">
+    <div class="card-title">HISTORIAL DE SESIÓN</div>
+    <ul class="historial-list" id="historialList">
+      <li class="historial-empty" id="historialEmpty">Sin canjes en esta sesión</li>
+    </ul>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── Configuración ───────────────────────────────────────────────────────────
+const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+  ? 'http://localhost:3000'
+  : 'https://api.ciudata.pe';  // Ajustar al dominio real del backend
+
+const params  = new URLSearchParams(window.location.search);
+const API_KEY = params.get('key') || '';
+
+let scanner      = null;
+let scannerActivo = false;
+let tokenActual  = null;
+let datoActual   = null;
+let historial    = [];
+
+// ── Autenticación inicial ────────────────────────────────────────────────────
+async function verificarAuth() {
+  if (!API_KEY) {
+    mostrarError();
+    return;
+  }
+  try {
+    const r = await apiFetch(`/sponsor/metricas`, 'GET');
+    document.getElementById('sponsorTag').textContent = r.sponsor || 'Sponsor';
+  } catch {
+    mostrarError();
+  }
+}
+
+function mostrarError() {
+  document.getElementById('authError').classList.add('visible');
+  document.getElementById('scannerCard').style.opacity = '0.4';
+  document.getElementById('scannerCard').style.pointerEvents = 'none';
+}
+
+// ── API helper ───────────────────────────────────────────────────────────────
+async function apiFetch(path, method = 'GET', body = null) {
+  const opts = {
+    method,
+    headers: { 'Content-Type': 'application/json', 'X-Api-Key': API_KEY },
+  };
+  if (body) opts.body = JSON.stringify(body);
+  const res = await fetch(`${API_BASE}${path}`, opts);
+  const json = await res.json();
+  if (!res.ok) throw { status: res.status, ...json };
+  return json;
+}
+
+// ── Scanner ──────────────────────────────────────────────────────────────────
+function iniciarScanner() {
+  document.getElementById('scanPlaceholder').style.display = 'none';
+  document.getElementById('btnIniciar').style.display = 'none';
+  document.getElementById('btnDetener').style.display = 'block';
+
+  scanner = new Html5Qrcode('reader');
+  scanner.start(
+    { facingMode: 'environment' },
+    { fps: 10, qrbox: { width: 220, height: 220 } },
+    onQRDetectado,
+    () => {}  // error silencioso de frame
+  ).catch(err => {
+    mostrarToast('No se pudo acceder a la cámara: ' + err, 'err');
+    resetScanner();
+  });
+  scannerActivo = true;
+}
+
+function detenerScanner() {
+  if (scanner && scannerActivo) {
+    scanner.stop().catch(() => {});
+    scannerActivo = false;
+  }
+  document.getElementById('btnIniciar').style.display = 'block';
+  document.getElementById('btnDetener').style.display = 'none';
+  document.getElementById('scanPlaceholder').style.display = 'flex';
+}
+
+async function onQRDetectado(tokenRaw) {
+  if (!scannerActivo) return;
+  detenerScanner();
+
+  // Extrae el token del QR (puede ser solo el token o una URL con ?token=...)
+  const token = tokenRaw.startsWith('http')
+    ? new URL(tokenRaw).searchParams.get('token') || tokenRaw
+    : tokenRaw.trim();
+
+  tokenActual = token;
+  mostrarCargando();
+
+  try {
+    const data = await apiFetch(`/qr/${encodeURIComponent(token)}`, 'GET');
+    datoActual = data;
+    mostrarResultado(token, data);
+  } catch (err) {
+    mostrarResultadoError(token, err);
+  }
+}
+
+// ── Resultado ────────────────────────────────────────────────────────────────
+function mostrarCargando() {
+  document.getElementById('resultCard').classList.add('visible');
+  document.getElementById('resultTitle').innerHTML = '<span class="spinner"></span>Verificando…';
+  document.getElementById('resultStatus').className = 'result-status';
+  document.getElementById('resultIcon').textContent = '';
+  document.getElementById('resultSub').textContent = '';
+  document.getElementById('premioBlock').style.display = 'none';
+}
+
+const PREMIOS = {
+  '100': { label: '🏆 PRODUCTO 100% GRATIS', cls: 'premio-100' },
+  '50':  { label: '⭐ 50% DE DESCUENTO',     cls: 'premio-50'  },
+  '30':  { label: '✅ 30% DE DESCUENTO',     cls: 'premio-30'  },
+};
+
+function mostrarResultado(token, data) {
+  const status = document.getElementById('resultStatus');
+  const icon   = document.getElementById('resultIcon');
+  const title  = document.getElementById('resultTitle');
+  const sub    = document.getElementById('resultSub');
+  const block  = document.getElementById('premioBlock');
+  const badge  = document.getElementById('premioBadge');
+  const det    = document.getElementById('detalles');
+  const btn    = document.getElementById('btnConfirmar');
+
+  if (!data.valido) {
+    status.className = 'result-status warn';
+    icon.textContent = '⚠️';
+    title.textContent = 'QR ya canjeado';
+    sub.textContent = data.canjeado_at
+      ? `Canjeado el ${new Date(data.canjeado_at).toLocaleString('es-PE')}`
+      : 'Este código ya fue utilizado';
+    block.style.display = 'none';
+    return;
+  }
+
+  status.className = 'result-status ok';
+  icon.textContent = '✓';
+  title.textContent = 'QR Válido';
+  sub.textContent = `Token: ${token.slice(0, 16)}…`;
+
+  const premio = PREMIOS[data.tipo_descuento] || PREMIOS['30'];
+  badge.className = `premio-badge ${premio.cls}`;
+  badge.textContent = premio.label;
+
+  det.innerHTML = `
+    <div class="detail-row">
+      <span class="detail-key">TIPO DESCUENTO</span>
+      <span class="detail-val">${data.tipo_descuento}%</span>
+    </div>
+    <div class="detail-row">
+      <span class="detail-key">USUARIO ID</span>
+      <span class="detail-val">${(data.usuario_id || '—').slice(0, 8)}…</span>
+    </div>
+    <div class="detail-row">
+      <span class="detail-key">CICLO</span>
+      <span class="detail-val">${(data.ciclo_id || '—').slice(0, 8)}…</span>
+    </div>
+  `;
+
+  btn.disabled = false;
+  btn.textContent = 'Confirmar canje';
+  block.style.display = 'block';
+  document.getElementById('resultCard').classList.add('visible');
+}
+
+function mostrarResultadoError(token, err) {
+  const status = document.getElementById('resultStatus');
+  document.getElementById('resultCard').classList.add('visible');
+  document.getElementById('premioBlock').style.display = 'none';
+
+  if (err.status === 404) {
+    status.className = 'result-status err';
+    document.getElementById('resultIcon').textContent = '✕';
+    document.getElementById('resultTitle').textContent = 'QR no encontrado';
+    document.getElementById('resultSub').textContent = 'El código escaneado no existe en el sistema.';
+  } else if (err.status === 410) {
+    status.className = 'result-status warn';
+    document.getElementById('resultIcon').textContent = '⏱';
+    document.getElementById('resultTitle').textContent = 'QR expirado';
+    document.getElementById('resultSub').textContent = 'El período de vigencia de este código ha terminado.';
+  } else {
+    status.className = 'result-status err';
+    document.getElementById('resultIcon').textContent = '✕';
+    document.getElementById('resultTitle').textContent = 'Error de validación';
+    document.getElementById('resultSub').textContent = err.error || 'Error desconocido.';
+  }
+
+  agregarHistorial(token, false);
+}
+
+// ── Canje ────────────────────────────────────────────────────────────────────
+async function confirmarCanje() {
+  const btn = document.getElementById('btnConfirmar');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Registrando…';
+
+  try {
+    await apiFetch(`/qr/${encodeURIComponent(tokenActual)}/canjear`, 'POST', {
+      sponsor_id: API_KEY,
+    });
+
+    // Actualiza la pantalla de resultado
+    const status = document.getElementById('resultStatus');
+    status.className = 'result-status ok';
+    document.getElementById('resultIcon').textContent = '✓';
+    document.getElementById('resultTitle').textContent = '¡Canje registrado!';
+    document.getElementById('resultSub').textContent = new Date().toLocaleString('es-PE');
+    document.getElementById('premioBlock').style.display = 'none';
+
+    agregarHistorial(tokenActual, true, datoActual?.tipo_descuento);
+    mostrarToast('Canje exitoso ✓', 'ok');
+  } catch (err) {
+    if (err.status === 409) {
+      mostrarToast('Este QR ya fue canjeado anteriormente.', 'err');
+    } else {
+      mostrarToast(err.error || 'Error al registrar el canje.', 'err');
+    }
+    btn.disabled = false;
+    btn.textContent = 'Reintentar';
+  }
+}
+
+// ── Historial de sesión ──────────────────────────────────────────────────────
+function agregarHistorial(token, exito, tipo) {
+  historial.unshift({ token, exito, tipo, ts: new Date() });
+  renderHistorial();
+}
+
+function renderHistorial() {
+  const list  = document.getElementById('historialList');
+  const empty = document.getElementById('historialEmpty');
+
+  if (!historial.length) { empty.style.display = 'block'; return; }
+  empty.style.display = 'none';
+
+  list.innerHTML = historial.slice(0, 10).map(h => `
+    <li class="historial-item">
+      <div class="hist-dot ${h.exito ? 'hist-ok' : 'hist-err'}"></div>
+      <span class="hist-token">${h.token.slice(0, 24)}…</span>
+      <span class="hist-time">${h.ts.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' })}</span>
+    </li>
+  `).join('');
+}
+
+// ── Reset ────────────────────────────────────────────────────────────────────
+function resetScanner() {
+  tokenActual = null;
+  datoActual  = null;
+  document.getElementById('resultCard').classList.remove('visible');
+  document.getElementById('scanPlaceholder').style.display = 'flex';
+  document.getElementById('btnIniciar').style.display = 'block';
+  document.getElementById('btnDetener').style.display = 'none';
+}
+
+// ── Toast ────────────────────────────────────────────────────────────────────
+let toastTimer = null;
+function mostrarToast(msg, tipo = 'ok') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = `toast toast-${tipo} show`;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.className = 'toast'; }, 3200);
+}
+
+// ── Init ─────────────────────────────────────────────────────────────────────
+verificarAuth();
+</script>
+</body>
+</html>

@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: ciudata-api
+    runtime: node
+    rootDir: ciudata-api
+    buildCommand: npm install
+    startCommand: node src/app.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: DOMO_WEBHOOK_SECRET
+        generateValue: true
+      - key: ADMIN_KEY
+        generateValue: true
+      - key: PORT
+        value: 10000

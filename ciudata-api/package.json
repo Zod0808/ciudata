@@ -1,0 +1,50 @@
+{
+  "name": "ciudata-api",
+  "version": "1.0.0",
+  "description": "Backend REST API para CIUDATA — Hackathon 2026 UPT",
+  "main": "src/app.js",
+  "scripts": {
+    "start": "node src/app.js",
+    "dev": "nodemon src/app.js",
+    "scheduler": "node src/scheduler.js",
+    "dev:all": "concurrently \"npm run dev\" \"npm run scheduler\"",
+    "db:migrate": "psql $DATABASE_URL -f schema.sql",
+    "db:migrate:002": "psql $DATABASE_URL -f migrations/002_encuestas_sponsors.sql",
+    "db:migrate:003": "psql $DATABASE_URL -f migrations/003_referidos_domos.sql",
+    "db:migrate:004": "psql $DATABASE_URL -f migrations/004_auth_partitioning.sql",
+    "docker:up": "docker compose up --build",
+    "docker:down": "docker compose down",
+    "job:ranking": "node src/jobs/ranking.js",
+    "job:apertura": "node src/jobs/ciclo-apertura.js",
+    "job:encuesta": "node src/jobs/encuestas-habilitar.js",
+    "job:cierre": "node src/jobs/ciclo-cierre.js",
+    "job:final": "node src/jobs/ranking-final.js",
+    "job:qr": "node src/jobs/qr-generar.js",
+    "job:notif": "node src/jobs/notificaciones.js",
+    "job:reporte": "node src/jobs/reporte-sponsor.js"
+  },
+  "dependencies": {
+    "bcrypt": "^5.1.1",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "express-rate-limit": "^7.3.1",
+    "firebase-admin": "^12.3.0",
+    "ioredis": "^5.4.1",
+    "jsonwebtoken": "^9.0.2",
+    "node-cron": "^3.0.3",
+    "pg": "^8.12.0",
+    "twilio": "^5.3.3",
+    "uuid": "^10.0.0"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "nodemon": "^3.1.4"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "allowScripts": {
+    "bcrypt@5.1.1": true,
+    "protobufjs@7.6.2": true
+  }
+}
