@@ -1,6 +1,6 @@
 // Servicio OTP: generación CSPRNG + envío SMS (Twilio en producción, consola en dev).
 const crypto = require('crypto');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 
 const BCRYPT_ROUNDS = 10;
 const OTP_TTL_MIN   = 5;
