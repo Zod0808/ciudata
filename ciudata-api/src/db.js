@@ -12,7 +12,9 @@ const pool = new Pool({
   ssl: sslRequired ? { rejectUnauthorized: false } : false,
   max: 10,
   idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 5000,
+  connectionTimeoutMillis: 8000,
+  // Render Free no tiene IPv6 — forzar resolución IPv4
+  family: 4,
 });
 
 pool.on('error', (err) => {
