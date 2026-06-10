@@ -4,7 +4,7 @@
 	"webDir": "www",
 	"android": {
 		"captureInput": true,
-		"webContentsDebuggingEnabled": false,
+		"webContentsDebuggingEnabled": true,
 		"backgroundColor": "#0B1410",
 		"loggingBehavior": "none"
 	},

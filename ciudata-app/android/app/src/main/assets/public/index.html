@@ -749,6 +749,7 @@
     .route-tag.bad  { color:var(--danger); border-color:rgba(248,68,57,0.3); background:rgba(248,68,57,0.06); }
     .ai-disclaimer { font-size:10px; color:var(--text3); text-align:center; font-family:'Space Mono',monospace; margin-top:8px; line-height:1.6; }
   </style>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 </head>
 <body>
 
@@ -983,54 +984,7 @@
 
     <!-- PAGE: PERFIL -->
     <div class="page" id="page-profile">
-      <div class="profile-hero">
-        <div class="profile-avatar">🌿</div>
-        <div class="profile-name">Ciudadano Tacna</div>
-        <div class="profile-tag">CIUDATA · USUARIO ACTIVO</div>
-      </div>
-
-      <div class="points-card">
-        <div class="points-num" id="pointsDisplay">320</div>
-        <div class="points-label">PUNTOS CIUDATA</div>
-        <div style="font-size:12px;margin-top:8px;opacity:0.8;">Canjea en sponsors locales →</div>
-      </div>
-
-      <div class="section">
-        <div class="section-title">LOGROS</div>
-      </div>
-      <div class="achievement-grid">
-        <div class="achievement"><div class="achievement-icon">🗺</div><div class="achievement-name">EXPLORADOR</div></div>
-        <div class="achievement"><div class="achievement-icon">📊</div><div class="achievement-name">ANALISTA</div></div>
-        <div class="achievement"><div class="achievement-icon">💚</div><div class="achievement-name">ECO HERO</div></div>
-        <div class="achievement locked"><div class="achievement-icon">🏆</div><div class="achievement-name">LEYENDA</div></div>
-        <div class="achievement locked"><div class="achievement-icon">🌍</div><div class="achievement-name">GLOBAL</div></div>
-        <div class="achievement locked"><div class="achievement-icon">⭐</div><div class="achievement-name">PREMIUM</div></div>
-      </div>
-
-      <div class="section"><div class="section-title">CONFIGURACIÓN</div></div>
-      <div class="menu-list">
-        <div class="menu-item ripple" onclick="showToast('📍 Ubicación activa')">
-          <div class="menu-icon">📍</div>
-          <div class="menu-label">Mi Ubicación</div>
-          <div class="menu-arrow">›</div>
-        </div>
-        <div class="menu-item ripple" onclick="showToast('🔔 Alertas configuradas')">
-          <div class="menu-icon">🔔</div>
-          <div class="menu-label">Notificaciones</div>
-          <div class="menu-arrow">›</div>
-        </div>
-        <div class="menu-item ripple" onclick="showToast('🎁 Pronto disponible')">
-          <div class="menu-icon">🎁</div>
-          <div class="menu-label">Canjear Puntos</div>
-          <div class="menu-arrow">›</div>
-        </div>
-        <div class="menu-item ripple" onclick="showToast('📄 Normativa ECA cargada')">
-          <div class="menu-icon">📄</div>
-          <div class="menu-label">Normativa ECA Aire</div>
-          <div class="menu-arrow">›</div>
-        </div>
-      </div>
-      <div style="height:20px"></div>
+      <div id="profile-content" style="min-height:100%;"></div>
     </div>
 
   </div><!-- /content -->
@@ -1090,8 +1044,7 @@
 <script>
 // ── SPLASH ──────────────────────────────────────────────────
 window.addEventListener('load', () => {
-  const savedPoints = localStorage.getItem('ciudata_points');
-  if (savedPoints) document.getElementById('pointsDisplay').textContent = savedPoints;
+  // Points are now loaded dynamically in renderProfileLoggedIn()
   setTimeout(() => {
     document.getElementById('splash').classList.add('hide');
     setTimeout(() => { document.getElementById('splash').remove(); initMap(); startLiveData(); }, 650);
@@ -1246,6 +1199,104 @@ const SCENARIOS = [
   },
 ];
 let currentScenario = 0;
+
+// ── SUPABASE / API CONFIG ─────────────────────────────────────
+const SUPABASE_URL  = 'https://cxulazyqmsfwatmsctzf.supabase.co';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN4dWxhenlxbXNmd2F0bXNjdHpmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkzNzM5NzcsImV4cCI6MjA5NDk0OTk3N30.cTFnaWDMnbzYNs9GU0STMzcydPxNna2Ldu_8M9zJIUI';
+
+// ciudata-api — cambia a tu URL desplegada cuando subas a producción
+// Local Android emulator: 'http://10.0.2.2:3000'
+const API_BASE = 'https://ciudata-api.onrender.com';
+
+let sbApp = null;
+if (typeof supabase !== 'undefined') {
+  sbApp = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+}
+
+// ── REAL DATA LOADER ─────────────────────────────────────────
+async function loadSupabaseData() {
+  if (!sbApp) return;
+  try {
+    const { data: domos, error: e1 } = await sbApp
+      .from('domos').select('id, nombre, lat, lng').eq('activo', true);
+    if (e1 || !domos?.length) return;
+
+    const { data: lecturas } = await sbApp
+      .from('lecturas_domos')
+      .select('domo_id, pm25, anomalia, leida_at')
+      .in('domo_id', domos.map(d => d.id))
+      .order('leida_at', { ascending: false })
+      .limit(domos.length * 5);
+
+    // Última lectura por domo
+    const latest = {};
+    (lecturas || []).forEach(l => { if (!latest[l.domo_id]) latest[l.domo_id] = l; });
+
+    const nodes = domos.map(d => {
+      const l = latest[d.id];
+      const pm25 = Math.round(l?.pm25 ?? 12);
+      const anom = l?.anomalia ?? false;
+      const state = pm25 > 50 ? 'DANGER' : pm25 > 25 ? 'WARN' : 'OK';
+      const ind   = pm25 > 50 ? 'ind-danger' : pm25 > 25 ? 'ind-warn' : 'ind-ok';
+      return {
+        name: d.nombre,
+        loc: `${d.lat.toFixed(4)}, ${d.lng.toFixed(4)} · ${anom ? '⚠ Anomalía' : '● Online'}`,
+        icon: anom ? '🏭' : pm25 > 25 ? '⚠' : '🌿',
+        state, ind, pm25, co2: Math.round(380 + pm25 * 0.7), uv: 5,
+      };
+    });
+
+    renderNodes({ nodes });
+
+    // Actualizar tarjeta PM2.5
+    const avgPm25 = Math.round(nodes.reduce((s, n) => s + n.pm25, 0) / nodes.length);
+    const maxPm25 = Math.max(...nodes.map(n => n.pm25));
+    const pm25Color = maxPm25 > 50 ? 'var(--danger)' : maxPm25 > 25 ? 'var(--warn)' : 'var(--green)';
+    const pm25Status = maxPm25 > 100 ? '⚠ Crítico' : maxPm25 > 50 ? '↑ Alto' : maxPm25 > 25 ? '↑ Moderado' : '✓ Bueno';
+    document.getElementById('aqi-card-pm25')?.style.setProperty('--indicator-color', pm25Color);
+    const valEl = document.getElementById('val-pm25');
+    if (valEl) animateCounter(valEl, avgPm25);
+    const statEl = document.getElementById('aqi-status-pm25');
+    if (statEl) statEl.textContent = pm25Status;
+
+    showToast('📡 Datos en vivo · Supabase');
+
+    // Realtime: actualizar nodos cuando llegue una nueva lectura
+    sbApp.channel('app-lecturas')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'lecturas_domos' },
+        () => setTimeout(loadSupabaseData, 400))
+      .subscribe();
+
+  } catch (err) {
+    console.warn('[CIUDATA] Supabase no disponible, usando datos demo:', err?.message);
+  }
+}
+
+// ── API HELPERS (ciudata-api) ─────────────────────────────────
+const CiudataAPI = {
+  async post(path, body, token) {
+    try {
+      const headers = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = 'Bearer ' + token;
+      const r = await fetch(API_BASE + path, { method: 'POST', headers, body: JSON.stringify(body) });
+      return r.json().catch(() => null);
+    } catch { return null; }
+  },
+  async get(path, token) {
+    try {
+      const headers = token ? { Authorization: 'Bearer ' + token } : {};
+      const r = await fetch(API_BASE + path, { headers });
+      return r.ok ? r.json() : null;
+    } catch { return null; }
+  },
+  requestOtp:     (phone)         => CiudataAPI.post('/auth/solicitar-otp', { phone }),
+  verifyOtp:      (phone, codigo) => CiudataAPI.post('/auth/verificar-otp', { phone, codigo }),
+  logout:         (token)         => CiudataAPI.post('/auth/logout', {}, token),
+  getPuntos:      (userId)        => CiudataAPI.get(`/puntos/usuario/${userId}`),
+  getEncuesta:    ()              => CiudataAPI.get('/encuesta/activa'),
+  submitEncuesta: (body)          => CiudataAPI.post('/encuesta/responder', body),
+  getRanking:     (cicloId)       => CiudataAPI.get(`/ranking/ciclo/${cicloId}`),
+};
 
 function renderNodes(s) {
   const list = document.getElementById('nodesList');
@@ -1472,40 +1523,58 @@ function switchPage(id, btn) {
     activePageIdx = newIdx;
     isAnimating = false;
     if (id === 'survey' && !surveyInit) initSurvey();
+    if (id === 'profile') loadProfile();
     if (id === 'map' && map) map.invalidateSize();
   }, 310);
 }
 
 // ── SURVEY ───────────────────────────────────────────────────
-const questions = [
-  { q:'¿Alguna vez has evitado ir a una zona por el tráfico o la contaminación?', opts:['Sí, lo hago seguido','Sí, pero pocas veces','No, nunca lo había pensado','No me afecta, igual voy'] },
-  { q:'Si pudieras ver contaminación peligrosa en tu celular, ¿cambiarías tu ruta?', opts:['Sí, definitivamente','Dependería del destino','No, pero me gustaría saberlo','No me importaría'] },
-  { q:'¿Sabías que existen límites ECA Aire y que el tráfico es su principal causa?', opts:['Sí, conozco los límites','Sabía que existían','No lo sabía'] },
-  { q:'¿Qué generaría más impacto para mejorar el tránsito y el aire?', opts:['Más multas y fiscalización','Ver el daño real del desorden vial','Mejor infraestructura','Educación desde el colegio'] },
-  { q:'Si existiera un mapa en tiempo real de contaminación, ¿lo usarías?', opts:['Sí, a diario','Sí, si tengo familia vulnerable','Ocasionalmente','No lo usaría'] },
+const QUESTIONS_FALLBACK = [
+  { id:'q_f1', q:'¿Alguna vez has evitado ir a una zona por el tráfico o la contaminación?', opts:['Sí, lo hago seguido','Sí, pero pocas veces','No, nunca lo había pensado','No me afecta, igual voy'] },
+  { id:'q_f2', q:'Si pudieras ver contaminación peligrosa en tu celular, ¿cambiarías tu ruta?',  opts:['Sí, definitivamente','Dependería del destino','No, pero me gustaría saberlo','No me importaría'] },
+  { id:'q_f3', q:'¿Sabías que el tráfico es la principal causa del exceso de PM2.5 en Tacna?',  opts:['Sí, lo sabía','Lo sospechaba','No lo sabía'] },
+  { id:'q_f4', q:'¿Usarías CIUDATA para elegir tu ruta si mostrara contaminación en tiempo real?', opts:['Sí, a diario','Sí, si tengo familia vulnerable','Ocasionalmente','No lo usaría'] },
 ];
+let questions = QUESTIONS_FALLBACK.slice();
 let surveyQ = 0, answers = [], surveyInit = false;
+let surveyEncuesta = null;
 
-function initSurvey() {
+async function initSurvey() {
   surveyInit = true;
+  surveyQ = 0;
+  answers = [];
+  document.getElementById('surveyContent').innerHTML =
+    '<div style="padding:40px 16px;text-align:center;color:var(--text2);">⏳ Cargando encuesta...</div>';
+
+  const data = await CiudataAPI.getEncuesta();
+  if (data && Array.isArray(data.preguntas) && data.preguntas.length) {
+    surveyEncuesta = data;
+    questions = data.preguntas.map(p => ({ id: p.id, q: p.texto, opts: p.opciones }));
+    document.getElementById('surveyProgressText').textContent = `Semana ${data.semana} · Ciclo activo`;
+  } else {
+    surveyEncuesta = null;
+    questions = QUESTIONS_FALLBACK.slice();
+  }
   renderQuestion();
 }
 
 function renderQuestion() {
   const q = questions[surveyQ];
   const letters = ['A','B','C','D'];
-  const pct = ((surveyQ+1)/questions.length*100)+'%';
+  const pct = ((surveyQ + 1) / questions.length * 100) + '%';
   document.getElementById('surveyProgress').style.width = pct;
-  document.getElementById('surveyProgressText').textContent = `Pregunta ${surveyQ+1} de ${questions.length}`;
+  if (!surveyEncuesta) {
+    document.getElementById('surveyProgressText').textContent = `Pregunta ${surveyQ + 1} de ${questions.length}`;
+  }
   document.getElementById('surveyContent').innerHTML = `
     <div class="survey-q">
       <div class="q-text">${q.q}</div>
       <div class="q-options">
-        ${q.opts.map((o,i)=>`<div class="q-opt ripple" onclick="selectOpt(this,${i})"><div class="q-opt-letter">${letters[i]}</div>${o}</div>`).join('')}
+        ${q.opts.map((o, i) => `<div class="q-opt ripple" onclick="selectOpt(this,${i})"><div class="q-opt-letter">${letters[i]}</div>${o}</div>`).join('')}
       </div>
     </div>
     <button class="btn-primary" onclick="nextQuestion()">Siguiente →</button>
-    ${surveyQ>0?'<button class="btn-secondary" onclick="prevQuestion()">← Anterior</button>':''}
+    ${surveyQ > 0 ? '<button class="btn-secondary" onclick="prevQuestion()">← Anterior</button>' : ''}
   `;
 }
 
@@ -1528,23 +1597,198 @@ function prevQuestion() { if (surveyQ > 0) { surveyQ--; renderQuestion(); } }
 function resetSurvey() {
   surveyQ = 0;
   answers = [];
+  surveyEncuesta = null;
   surveyInit = false;
-  renderQuestion();
+  initSurvey();
 }
 
-function finishSurvey() {
-  const pts = parseInt(document.getElementById('pointsDisplay').textContent) + 50;
-  document.getElementById('pointsDisplay').textContent = pts;
-  localStorage.setItem('ciudata_points', pts);
+async function finishSurvey() {
+  const s = getSession();
+  let puntosGanados = 0;
+  let rachaMsg = '';
+
+  if (!s) {
+    document.getElementById('surveyContent').innerHTML = `
+      <div style="padding:32px 16px;text-align:center;">
+        <div style="font-size:48px;margin-bottom:12px;">🔒</div>
+        <div style="font-size:18px;font-weight:700;margin-bottom:8px;">Inicia sesión para guardar tus puntos</div>
+        <div style="font-size:13px;color:var(--text2);margin-bottom:20px;">Completa tu perfil para que tus respuestas cuenten en el ranking.</div>
+        <button class="btn-primary" onclick="switchPage('profile', document.querySelectorAll('.nav-item')[3])">Ir a Perfil →</button>
+      </div>`;
+    return;
+  }
+
+  if (surveyEncuesta) {
+    const respuestas = answers.map((opcion_idx, i) => ({ pregunta_id: questions[i].id, opcion_idx }));
+    const r = await CiudataAPI.submitEncuesta({
+      usuario_id: s.usuario_id,
+      ciclo_id:   surveyEncuesta.ciclo_id,
+      semana:     surveyEncuesta.semana,
+      respuestas,
+    });
+    if (r && r.puntos_otorgados !== undefined) {
+      puntosGanados = r.puntos_otorgados + (r.puntos_racha || 0);
+      if (r.racha_completada) rachaMsg = `<div style="color:var(--warn);font-weight:700;margin-top:6px;">🔥 ¡Racha completa! +${r.puntos_racha} pts bonus</div>`;
+    } else if (r?.error) {
+      if (r.error.includes('ya respondida')) {
+        document.getElementById('surveyContent').innerHTML = `
+          <div style="padding:32px 16px;text-align:center;">
+            <div style="font-size:48px;margin-bottom:12px;">✅</div>
+            <div style="font-size:18px;font-weight:700;margin-bottom:8px;">Ya completaste esta semana</div>
+            <div style="font-size:13px;color:var(--text2);">Vuelve la próxima semana para ganar más puntos.</div>
+          </div>`;
+        return;
+      }
+      showToast(r.error);
+      return;
+    }
+  }
+
   document.getElementById('surveyContent').innerHTML = `
     <div style="padding:32px 16px;text-align:center;">
       <div style="font-size:64px;margin-bottom:16px;">🎉</div>
       <div style="font-size:22px;font-weight:800;margin-bottom:8px;">¡Encuesta completada!</div>
-      <div style="font-size:13px;color:var(--text2);margin-bottom:24px;">Ganaste <span style="color:var(--green);font-weight:700;">+50 puntos</span> CIUDATA</div>
-      <button class="btn-primary" onclick="resetSurvey()">Nueva encuesta</button>
+      <div style="font-size:13px;color:var(--text2);margin-bottom:4px;">Ganaste <span style="color:var(--green);font-weight:700;">+${puntosGanados || 40} puntos</span> CIUDATA</div>
+      ${rachaMsg}
+      <button class="btn-primary" style="margin-top:20px" onclick="resetSurvey()">Nueva encuesta</button>
     </div>`;
-  showToast('🎉 +50 puntos ganados');
-  vibrate([50,30,80]);
+  showToast(`🎉 +${puntosGanados || 40} puntos ganados`);
+  vibrate([50, 30, 80]);
+}
+
+// ── AUTH / SESSION ───────────────────────────────────────────
+function getSession() {
+  try { return JSON.parse(localStorage.getItem('ciudata_session') || 'null'); } catch { return null; }
+}
+function saveSession(s) { localStorage.setItem('ciudata_session', JSON.stringify(s)); }
+function clearSession() { localStorage.removeItem('ciudata_session'); }
+
+let _authPhone = '';
+
+function loadProfile() {
+  const s = getSession();
+  if (s) renderProfileLoggedIn(s);
+  else   renderProfileLoggedOut();
+}
+
+function renderProfileLoggedOut() {
+  document.getElementById('profile-content').innerHTML = `
+    <div class="profile-hero">
+      <div class="profile-avatar">👤</div>
+      <div class="profile-name">Inicia sesión</div>
+      <div class="profile-tag">CIUDATA · TACNA · PERÚ</div>
+    </div>
+    <div style="padding:0 16px 24px">
+      <div id="auth-step-phone">
+        <div class="section-title" style="margin-bottom:12px">Número de teléfono</div>
+        <input id="auth-phone" type="tel" placeholder="+51 999 999 999"
+          style="width:100%;padding:14px 16px;border-radius:14px;border:1.5px solid var(--border);background:var(--card);color:var(--text);font-size:15px;box-sizing:border-box;outline:none;margin-bottom:12px;">
+        <button class="btn-primary" onclick="authRequestOtp()">Enviar código →</button>
+      </div>
+      <div id="auth-step-otp" style="display:none">
+        <div style="font-size:13px;color:var(--text2);margin-bottom:16px;text-align:center;line-height:1.6;">
+          📱 Código enviado a tu teléfono.<br>Revisa tu SMS.
+        </div>
+        <div class="section-title" style="margin-bottom:12px">Código de 6 dígitos</div>
+        <input id="auth-otp" type="number" placeholder="123456"
+          style="width:100%;padding:14px 16px;border-radius:14px;border:1.5px solid var(--border);background:var(--card);color:var(--text);font-size:20px;letter-spacing:4px;text-align:center;box-sizing:border-box;outline:none;margin-bottom:12px;">
+        <button class="btn-primary" onclick="authVerifyOtp()">Verificar →</button>
+        <button class="btn-secondary" style="margin-top:8px" onclick="authBackToPhone()">← Cambiar número</button>
+      </div>
+    </div>`;
+}
+
+async function authRequestOtp() {
+  const phone = document.getElementById('auth-phone')?.value?.trim();
+  if (!phone || !/^\+?\d{7,15}$/.test(phone)) { showToast('Ingresa un número válido (+51...)'); return; }
+  _authPhone = phone;
+  showToast('Enviando código...');
+  const r = await CiudataAPI.requestOtp(phone);
+  if (r && !r.error) {
+    document.getElementById('auth-step-phone').style.display = 'none';
+    document.getElementById('auth-step-otp').style.display   = '';
+    showToast(`✅ Código enviado · ${r.canal || 'SMS'}`);
+  } else {
+    showToast(r?.error || 'Error al enviar OTP');
+  }
+}
+
+async function authVerifyOtp() {
+  const codigo = String(document.getElementById('auth-otp')?.value || '').trim();
+  if (codigo.length < 6) { showToast('Ingresa el código de 6 dígitos'); return; }
+  showToast('Verificando...');
+  const r = await CiudataAPI.verifyOtp(_authPhone, codigo);
+  if (r && r.token) {
+    saveSession({ token: r.token, usuario_id: r.usuario.id, phone: _authPhone });
+    vibrate([30, 20, 50]);
+    showToast('✅ ¡Sesión iniciada!');
+    loadProfile();
+  } else {
+    showToast(r?.error || 'Código incorrecto');
+  }
+}
+
+function authBackToPhone() {
+  document.getElementById('auth-step-otp').style.display   = 'none';
+  document.getElementById('auth-step-phone').style.display = '';
+}
+
+async function renderProfileLoggedIn(s) {
+  const shortPhone = s.phone ? '···' + s.phone.slice(-4) : 'Ciudadano Tacna';
+  document.getElementById('profile-content').innerHTML = `
+    <div class="profile-hero">
+      <div class="profile-avatar">🌿</div>
+      <div class="profile-name">${shortPhone}</div>
+      <div class="profile-tag">CIUDATA · USUARIO ACTIVO</div>
+    </div>
+    <div class="points-card">
+      <div class="points-num" id="pointsDisplay">--</div>
+      <div class="points-label">PUNTOS CIUDATA</div>
+      <div style="font-size:12px;margin-top:8px;opacity:0.8;">Ciclo activo · Junio 2026</div>
+    </div>
+    <div class="section"><div class="section-title">LOGROS</div></div>
+    <div class="achievement-grid">
+      <div class="achievement"><div class="achievement-icon">🗺</div><div class="achievement-name">EXPLORADOR</div></div>
+      <div class="achievement"><div class="achievement-icon">📊</div><div class="achievement-name">ANALISTA</div></div>
+      <div class="achievement"><div class="achievement-icon">💚</div><div class="achievement-name">ECO HERO</div></div>
+      <div class="achievement locked"><div class="achievement-icon">🏆</div><div class="achievement-name">LEYENDA</div></div>
+      <div class="achievement locked"><div class="achievement-icon">🌍</div><div class="achievement-name">GLOBAL</div></div>
+      <div class="achievement locked"><div class="achievement-icon">⭐</div><div class="achievement-name">PREMIUM</div></div>
+    </div>
+    <div class="section"><div class="section-title">CONFIGURACIÓN</div></div>
+    <div class="menu-list">
+      <div class="menu-item ripple" onclick="showToast('📍 Ubicación activa')">
+        <div class="menu-icon">📍</div><div class="menu-label">Mi Ubicación</div><div class="menu-arrow">›</div>
+      </div>
+      <div class="menu-item ripple" onclick="showToast('🔔 Alertas configuradas')">
+        <div class="menu-icon">🔔</div><div class="menu-label">Notificaciones</div><div class="menu-arrow">›</div>
+      </div>
+      <div class="menu-item ripple" onclick="showToast('🎁 Pronto disponible')">
+        <div class="menu-icon">🎁</div><div class="menu-label">Canjear Puntos</div><div class="menu-arrow">›</div>
+      </div>
+      <div class="menu-item ripple" onclick="authLogout()" style="border-color:rgba(248,68,57,0.2)">
+        <div class="menu-icon">🚪</div>
+        <div class="menu-label" style="color:var(--danger)">Cerrar sesión</div>
+        <div class="menu-arrow" style="color:var(--danger)">›</div>
+      </div>
+    </div>
+    <div style="height:20px"></div>`;
+
+  const data = await CiudataAPI.getPuntos(s.usuario_id);
+  if (data && data.total_puntos !== undefined) {
+    const el = document.getElementById('pointsDisplay');
+    if (el) animateCounter(el, data.total_puntos);
+  }
+}
+
+async function authLogout() {
+  const s = getSession();
+  if (s?.token) await CiudataAPI.logout(s.token);
+  clearSession();
+  surveyEncuesta = null;
+  surveyInit = false;
+  showToast('Sesión cerrada');
+  loadProfile();
 }
 
 // ── NODE DETAIL ──────────────────────────────────────────────
@@ -2022,6 +2266,7 @@ window.addEventListener('DOMContentLoaded', () => {
   const saved = localStorage.getItem('ciudata_theme');
   if (saved === 'light') applyTheme(true);
   document.documentElement.classList.remove('prelight');
+  loadSupabaseData();
 });
 </script>
 </body>
