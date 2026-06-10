@@ -1,3 +1,6 @@
+// Forzar IPv4 antes de cualquier conexión — Render Free no soporta IPv6
+require('dns').setDefaultResultOrder('ipv4first');
+
 require('dotenv').config();
 const express = require('express');
 const rateLimit = require('express-rate-limit');
