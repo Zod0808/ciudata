@@ -37,7 +37,18 @@ app.use('/domos',      domosRouter);
 app.use('/onboarding', onboardingRouter);
 
 // Health-check
-app.get('/health', (_req, res) => res.json({ ok: true, ts: new Date() }));
+app.get('/health', async (_req, res) => {
+  const info = { ok: true, ts: new Date(), node: process.version };
+  try {
+    const db = require('./db');
+    await db.query('SELECT 1');
+    info.db = 'ok';
+  } catch (e) {
+    info.db = 'error';
+    info.db_msg = e.message;
+  }
+  res.json(info);
+});
 
 // 404 genérico
 app.use((_req, res) => res.status(404).json({ error: 'Endpoint no encontrado.' }));

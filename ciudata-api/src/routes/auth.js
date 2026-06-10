@@ -35,13 +35,13 @@ router.post('/solicitar-otp', async (req, res) => {
 
   const phoneHash = hashPhone(phone);
   const codigo    = generarCodigoOTP();
-  const otpHash   = await hashOTP(codigo);
 
-  const client = await db.connect();
+  let client;
   try {
+    const otpHash = await hashOTP(codigo);
+    client = await db.connect();
     await client.query('BEGIN');
 
-    // Invalida OTPs anteriores activos para este número.
     await client.query(
       'UPDATE otp_tokens SET used = TRUE WHERE phone_hash = $1 AND used = FALSE',
       [phoneHash]
@@ -58,11 +58,11 @@ router.post('/solicitar-otp', async (req, res) => {
     const canal = await enviarSMS(phone, codigo);
     return res.json({ mensaje: 'Código enviado.', canal: canal.canal, ttl_min: OTP_TTL_MIN });
   } catch (err) {
-    await client.query('ROLLBACK');
+    if (client) await client.query('ROLLBACK').catch(() => {});
     console.error('[auth/solicitar-otp]', err.message);
     return res.status(500).json({ error: 'Error al enviar OTP.' });
   } finally {
-    client.release();
+    if (client) client.release();
   }
 });
 
