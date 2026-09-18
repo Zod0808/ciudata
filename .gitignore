@@ -3,8 +3,8 @@ node_modules/
 
 # Environment
 .env
-.env.local
-*.env.local
+.env.*
+!.env.example
 
 # Logs
 *.log
@@ -15,6 +15,26 @@ dist/
 build/
 *.apk
 *.aab
+
+# Android — signing & local config (NEVER commit)
+*.jks
+*.keystore
+*.jceks
+key.properties
+keystore.properties
+signing.properties
+local.properties
+
+# Credentials / service accounts (NEVER commit)
+google-services.json
+GoogleService-Info.plist
+*service-account*.json
+*serviceAccount*.json
+*firebase-adminsdk*.json
+*.pem
+*.p12
+*.pfx
+*.key
 
 # OS / editor
 .DS_Store
