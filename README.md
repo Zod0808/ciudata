@@ -1,6 +1,6 @@
 # CIUDATA — Smart Environmental Monitoring for Tacna
 
-Aplicación móvil Android y backend REST para monitoreo ambiental-vial en la ciudad de Tacna, Perú. CIUDATA muestra un mapa interactivo de calidad del aire, un panel de métricas en tiempo real y una encuesta ciudadana con gamificación. Prototipo del Hackathon 2026 — Reto 2: Transporte y Tránsito · Equipo CIUDATA · Universidad Privada de Tacna.
+Android app and REST backend for real-time environmental and traffic monitoring in Tacna, Peru. CIUDATA ships an interactive air-quality map, a live metrics dashboard, and a citizen survey with gamification. Prototype for Hackathon 2026 — Challenge 2: Transport & Traffic · Team CIUDATA · Universidad Privada de Tacna.
 
 ![Capacitor](https://img.shields.io/badge/Capacitor-6.0-119EFF?logo=capacitor&logoColor=white)
 ![Android](https://img.shields.io/badge/Android-API%2022--34-3DDC84?logo=android&logoColor=white)
@@ -13,87 +13,87 @@ Aplicación móvil Android y backend REST para monitoreo ambiental-vial en la ci
 
 ---
 
-## Capturas
+## Screenshots
 
 <p align="center">
-  <img src="docs/screenshot-map.png" alt="Mapa de calidad del aire" width="320" />
+  <img src="docs/screenshot-map.png" alt="Air quality map with live sensor nodes" width="320" />
   &nbsp;&nbsp;
-  <img src="docs/screenshot-dashboard.png" alt="Panel de métricas y streaming" width="320" />
+  <img src="docs/screenshot-dashboard.png" alt="Metrics dashboard with PM2.5 streaming chart" width="320" />
 </p>
 
 ---
 
-## Problema
+## The Problem
 
-Tacna carece de datos ambientales accesibles y en tiempo real. Las mediciones oficiales son escasas, tardías y difíciles de interpretar para el ciudadano. CIUDATA propone una capa de visualización clara sobre datos simulados —listos para conectarse a sensores reales— y un backend con gamificación que incentiva la participación ciudadana.
+Tacna lacks accessible, real-time environmental data. Official measurements are sparse, delayed, and hard to interpret for citizens. CIUDATA delivers a clean visualization layer over currently-simulated data — ready to plug into real sensors — plus a backend with gamification that incentivizes citizen participation.
 
 ---
 
-## Arquitectura
+## Architecture
 
 ```
 ┌──────────────────────┐        ┌────────────────────────┐        ┌──────────────────┐
 │  ciudata-app         │  HTTPS │  ciudata-api           │   SQL  │  Supabase        │
 │  Capacitor Android   │ ─────► │  Node.js + Express     │ ─────► │  Postgres        │
-│  SPA (HTML + Leaflet)│  REST  │  rate-limit · JWT · FCM│        │  (esquema en    │
-│  datos simulados JS  │        │  cron jobs (scheduler) │        │   supabase/)     │
+│  SPA (HTML + Leaflet)│  REST  │  rate-limit · JWT · FCM│        │  (schema in      │
+│  simulated JS data   │        │  cron jobs (scheduler) │        │   supabase/)     │
 └──────────────────────┘        └───────────┬────────────┘        └──────────────────┘
                                             │
                                             ▼
                                  ┌───────────────────────┐
                                  │  ciudata-web          │
-                                 │  Landing / validación │
-                                 │  QR de sponsors       │
+                                 │  Landing / sponsor    │
+                                 │  QR validation        │
                                  └───────────────────────┘
 ```
 
-- **ciudata-app** — SPA de un solo archivo (`www/index.html`) envuelto por Capacitor 6 como app Android nativa. Los datos de sensores son simulados en JS; la app ya consume geolocalización real vía `@capacitor/geolocation`.
-- **ciudata-api** — REST API en Node/Express desplegada en Render. Endpoints para auth, encuesta, puntos, ranking, ruta, QR, sponsors, referidos, domos, onboarding y reporte. Jobs cron para apertura/cierre de ciclos, ranking, notificaciones y generación de QR.
-- **supabase** — Esquema Postgres (`schema.sql` + `seed.sql`) más migraciones incrementales en `ciudata-api/migrations/`.
-- **ciudata-web** — Página estática de validación de sponsors por QR.
+- **ciudata-app** — Single-file SPA (`www/index.html`) wrapped by Capacitor 6 as a native Android app. Sensor data is simulated in JS today; the app already uses real geolocation via `@capacitor/geolocation`.
+- **ciudata-api** — Node/Express REST API deployed on Render. Endpoints for auth, survey, points, ranking, routing, QR, sponsors, referrals, domes, onboarding, and reporting. Cron jobs for cycle open/close, ranking, notifications, and QR generation.
+- **supabase** — Canonical Postgres schema (`schema.sql` + `seed.sql`) plus incremental migrations under `ciudata-api/migrations/`.
+- **ciudata-web** — Static site for sponsor QR validation.
 
 ---
 
 ## Features
 
-- Mapa interactivo de Tacna con nodos sensores (Leaflet + OpenStreetMap) y modal por nodo con PM2.5, CO₂ y temperatura.
-- Panel de métricas: PM2.5, CO₂, UV, ozono y temperatura, cada una con sparkline y estado según ECA-Aire peruano.
-- Gráfico streaming de PM2.5 con línea límite ECA (25 µg/m³) y badge en vivo.
-- Escenarios de tráfico rotativos (hora punta, madrugada, etc.) que actualizan los valores en toda la app.
-- Encuesta ciudadana de 5 preguntas persistida en `localStorage` (Capacitor Preferences).
-- Perfil con puntos, logros desbloqueables y configuración.
-- Backend con rate limiting (60 req/min por IP), auth JWT, sponsors, referidos, ranking y jobs cron.
-- Push notifications preparadas vía Firebase Cloud Messaging (`firebase-admin`).
+- Interactive Tacna map with sensor nodes (Leaflet + OpenStreetMap) and per-node modal with PM2.5, CO₂, and temperature.
+- Metrics panel: PM2.5, CO₂, UV, ozone, and temperature — each with sparkline and status against the Peruvian ECA-Aire thresholds.
+- Live PM2.5 streaming chart with ECA limit line (25 µg/m³) and live badge.
+- Rotating traffic scenarios (rush hour, night, etc.) that refresh every value across the app.
+- 5-question citizen survey persisted to `localStorage` (Capacitor Preferences).
+- Profile with points, unlockable achievements, and settings.
+- Backend with rate limiting (60 req/min per IP), JWT auth, sponsors, referrals, ranking, and cron jobs.
+- Push notifications wired for Firebase Cloud Messaging (`firebase-admin`).
 
 ---
 
 ## Tech Stack
 
-| Capa               | Tecnología                                                        |
+| Layer              | Technology                                                        |
 |--------------------|-------------------------------------------------------------------|
-| App móvil          | Capacitor 6 (Android API 22–34), HTML/CSS/JS vanilla, Leaflet 1.9 |
-| Plugins Capacitor  | Geolocation, Preferences, Network, SplashScreen, StatusBar, Camera, Haptics, PushNotifications |
+| Mobile app         | Capacitor 6 (Android API 22–34), vanilla HTML/CSS/JS, Leaflet 1.9 |
+| Capacitor plugins  | Geolocation, Preferences, Network, SplashScreen, StatusBar, Camera, Haptics, PushNotifications |
 | Backend / API      | Node.js 18+, Express 4.19, express-rate-limit, bcryptjs, dotenv   |
-| Base de datos      | PostgreSQL (Supabase)                                             |
-| Scheduler          | node-cron (jobs en `ciudata-api/src/jobs/`)                       |
-| Notificaciones     | Firebase Admin (FCM)                                              |
-| Web estática       | HTML puro (`ciudata-web/`)                                        |
-| Build Android      | Gradle 8.2.2, Java 17, Kotlin 1.9.10                              |
-| Deploy backend     | Render (ver `ciudata-api/render.yaml`)                            |
-| Contenedores       | Docker + docker-compose (`ciudata-api/`)                          |
+| Database           | PostgreSQL (Supabase)                                             |
+| Scheduler          | node-cron (jobs in `ciudata-api/src/jobs/`)                       |
+| Notifications      | Firebase Admin (FCM)                                              |
+| Static web         | Plain HTML (`ciudata-web/`)                                       |
+| Android build      | Gradle 8.2.2, Java 17, Kotlin 1.9.10                              |
+| Backend deploy     | Render (see `ciudata-api/render.yaml`)                            |
+| Containers         | Docker + docker-compose (`ciudata-api/`)                          |
 
 ---
 
-## Estructura del monorepo
+## Monorepo Layout
 
 ```
 ciudata/
-├── ciudata-app/          # App Android (Capacitor + Leaflet SPA)
-│   ├── www/index.html    # SPA completa (HTML + CSS + JS)
-│   ├── android/          # Proyecto nativo Android
+├── ciudata-app/          # Android app (Capacitor + Leaflet SPA)
+│   ├── www/index.html    # Full SPA (HTML + CSS + JS)
+│   ├── android/          # Native Android project
 │   ├── capacitor.config.json
 │   └── package.json
-├── ciudata-api/          # Backend REST (Node.js + Express)
+├── ciudata-api/          # REST backend (Node.js + Express)
 │   ├── src/
 │   │   ├── app.js
 │   │   ├── db.js
@@ -107,10 +107,10 @@ ciudata/
 │   ├── render.yaml
 │   ├── Dockerfile
 │   └── docker-compose.yml
-├── ciudata-web/          # Landing / validación de sponsors
+├── ciudata-web/          # Sponsor landing / QR validation
 │   ├── index.html
 │   └── sponsor/validar.html
-└── supabase/             # Esquema Postgres canónico
+└── supabase/             # Canonical Postgres schema
     ├── schema.sql
     └── seed.sql
 ```
@@ -119,13 +119,13 @@ ciudata/
 
 ## Getting Started
 
-### Prerequisitos
+### Prerequisites
 
 - Node.js 18+
-- Android Studio Hedgehog (2023.1.1) o superior · JDK 17 · Android SDK API 34 — solo para compilar la app
-- Instancia PostgreSQL (Supabase o local vía Docker)
+- Android Studio Hedgehog (2023.1.1) or newer · JDK 17 · Android SDK API 34 — only needed to build the app
+- A PostgreSQL instance (Supabase or local via Docker)
 
-### 1. Clonar
+### 1. Clone
 
 ```bash
 git clone https://github.com/Zod0808/ciudata.git
@@ -137,47 +137,47 @@ cd ciudata
 ```bash
 cd ciudata-api
 npm install
-cp .env.example .env             # rellena DATABASE_URL, JWT_SECRET, etc.
-npm run db:migrate               # aplica schema.sql
-npm run db:migrate:002           # migraciones incrementales
+cp .env.example .env             # fill in DATABASE_URL, JWT_SECRET, ...
+npm run db:migrate               # applies schema.sql
+npm run db:migrate:002           # incremental migrations
 npm run db:migrate:003
 npm run db:migrate:004
 npm run dev                      # nodemon
-# o levanta API + scheduler juntos:
+# or run API + scheduler together:
 npm run dev:all
 ```
 
-API en `http://localhost:3000` — health-check en `GET /health`.
+API served at `http://localhost:3000` — health check at `GET /health`.
 
-Alternativa con Docker:
+Docker alternative:
 
 ```bash
 cd ciudata-api
 npm run docker:up
 ```
 
-### 3. App móvil (`ciudata-app`)
+### 3. Mobile app (`ciudata-app`)
 
 ```bash
 cd ciudata-app
 npm install
-npx cap add android              # solo la primera vez
+npx cap add android              # first time only
 npx cap sync android
-npx cap open android             # abre Android Studio
+npx cap open android             # opens Android Studio
 ```
 
-Generar APK debug:
+Build debug APK:
 
 ```
 Build → Build Bundle(s)/APK(s) → Build APK(s)
-# salida: android/app/build/outputs/apk/debug/app-debug.apk
+# output: android/app/build/outputs/apk/debug/app-debug.apk
 ```
 
-APK release firmado: ver [`ciudata-app/README.md`](ciudata-app/README.md) para el proceso con keystore.
+Signed release APK: see [`ciudata-app/README.md`](ciudata-app/README.md) for the keystore workflow.
 
-### 4. Web estática (`ciudata-web`)
+### 4. Static web (`ciudata-web`)
 
-Sirve la carpeta con cualquier servidor estático:
+Serve the folder with any static server:
 
 ```bash
 cd ciudata-web
@@ -186,13 +186,13 @@ npx serve .
 
 ---
 
-## Variables de entorno
+## Environment Variables
 
 Backend (`ciudata-api/.env`):
 
 ```env
 DATABASE_URL=postgresql://user:pass@host:5432/ciudata
-DB_SSL=true                      # requerido para Supabase
+DB_SSL=true                      # required for Supabase
 JWT_SECRET=change_me
 DOMO_WEBHOOK_SECRET=change_me
 ADMIN_KEY=change_me
@@ -200,47 +200,47 @@ PORT=3000
 NODE_ENV=development
 ```
 
-> Nunca commitees `.env` con valores reales. Verifica que esté en `.gitignore`.
+> Never commit a `.env` with real values. Verify it stays in `.gitignore`.
 
 ---
 
-## Endpoints principales
+## Main Endpoints
 
-| Ruta            | Descripción                                       |
+| Route           | Description                                       |
 |-----------------|---------------------------------------------------|
-| `GET /health`   | Health-check con ping a Postgres                  |
-| `/auth`         | Registro, login y OTP                             |
-| `/encuesta`     | Encuesta ciudadana y respuestas                   |
-| `/puntos`       | Gamificación — puntos por acción                  |
-| `/ranking`      | Ranking por ciclo (job `ranking.js`)              |
-| `/ruta`         | Recomendación de ruta según calidad del aire      |
-| `/qr`           | Generación y canje de QR                          |
-| `/sponsor`      | Sponsors y validación                             |
-| `/referidos`    | Programa de referidos                             |
-| `/domos`        | Webhooks de domos (`DOMO_WEBHOOK_SECRET`)         |
-| `/onboarding`   | Flujo inicial de usuario                          |
-| `/reporte`      | Reporte para sponsors                             |
+| `GET /health`   | Health check with a Postgres ping                 |
+| `/auth`         | Signup, login, and OTP                            |
+| `/encuesta`     | Citizen survey and responses                      |
+| `/puntos`       | Gamification — points per action                  |
+| `/ranking`      | Per-cycle ranking (job `ranking.js`)              |
+| `/ruta`         | Route recommendation based on air quality         |
+| `/qr`           | QR generation and redemption                      |
+| `/sponsor`      | Sponsors and validation                           |
+| `/referidos`    | Referral program                                  |
+| `/domos`        | Dome webhooks (`DOMO_WEBHOOK_SECRET`)             |
+| `/onboarding`   | User onboarding flow                              |
+| `/reporte`      | Sponsor reporting                                 |
 
-Cron jobs disponibles vía npm: `ranking`, `apertura`, `encuesta`, `cierre`, `final`, `qr`, `notif`, `reporte`.
+Cron jobs exposed via npm scripts: `ranking`, `apertura`, `encuesta`, `cierre`, `final`, `qr`, `notif`, `reporte`.
 
 ---
 
 ## Roadmap
 
-- [ ] Reemplazar datos simulados por telemetría real de sensores
-- [ ] Activar Firebase Cloud Messaging end-to-end
-- [ ] Exportación histórica en CSV
-- [ ] Tests automatizados (backend + smoke tests app)
-- [ ] Publicación en Google Play (AAB firmado)
+- [ ] Replace simulated data with real sensor telemetry
+- [ ] Enable Firebase Cloud Messaging end-to-end
+- [ ] Historical export to CSV
+- [ ] Automated tests (backend + app smoke tests)
+- [ ] Google Play release (signed AAB)
 
 ---
 
-## Equipo
+## Team
 
-Equipo CIUDATA — Universidad Privada de Tacna · Hackathon 2026 (Reto 2: Transporte y Tránsito).
+Team CIUDATA — Universidad Privada de Tacna · Hackathon 2026 (Challenge 2: Transport & Traffic).
 
 ---
 
-## Licencia
+## License
 
-MIT — ver [LICENSE](LICENSE).
+MIT — see [LICENSE](LICENSE).
