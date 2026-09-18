@@ -1,0 +1,26 @@
+# Dependencies
+node_modules/
+
+# Environment
+.env
+.env.local
+*.env.local
+
+# Logs
+*.log
+npm-debug.log*
+
+# Build output
+dist/
+build/
+*.apk
+*.aab
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Tooling
+.tokensave/

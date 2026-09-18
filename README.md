@@ -13,14 +13,6 @@ Aplicación móvil Android y backend REST para monitoreo ambiental-vial en la ci
 
 ---
 
-## Demo
-
-<!-- Sube capturas a docs/ y renómbralas si hace falta. -->
-![Mapa de calidad del aire](docs/screenshot-map.png)
-![Panel de métricas](docs/screenshot-dashboard.png)
-
----
-
 ## Problema
 
 Tacna carece de datos ambientales accesibles y en tiempo real. Las mediciones oficiales son escasas, tardías y difíciles de interpretar para el ciudadano. CIUDATA propone una capa de visualización clara sobre datos simulados —listos para conectarse a sensores reales— y un backend con gamificación que incentiva la participación ciudadana.
@@ -126,7 +118,7 @@ ciudata/
 ### 1. Clonar
 
 ```bash
-git clone https://github.com/your-username/ciudata.git
+git clone https://github.com/Zod0808/ciudata.git
 cd ciudata
 ```
 
