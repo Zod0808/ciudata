@@ -13,6 +13,16 @@ Aplicación móvil Android y backend REST para monitoreo ambiental-vial en la ci
 
 ---
 
+## Capturas
+
+<p align="center">
+  <img src="docs/screenshot-map.png" alt="Mapa de calidad del aire" width="320" />
+  &nbsp;&nbsp;
+  <img src="docs/screenshot-dashboard.png" alt="Panel de métricas y streaming" width="320" />
+</p>
+
+---
+
 ## Problema
 
 Tacna carece de datos ambientales accesibles y en tiempo real. Las mediciones oficiales son escasas, tardías y difíciles de interpretar para el ciudadano. CIUDATA propone una capa de visualización clara sobre datos simulados —listos para conectarse a sensores reales— y un backend con gamificación que incentiva la participación ciudadana.
